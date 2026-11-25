@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سمارت هيلث — نموذج تفاعلي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm clinical, warm Egyptian; IDEA: a design-review bench holding two real devices;
+   PICTURE: the device itself (laptop or iPhone) is the hero; COLOUR/TYPE: UI-01 tokens, Cairo + IBM Plex Sans Arabic + Inter;
+   LAYOUT: controls column at inline-start, device stage fills the rest, stacks under 900px. */
+:root{color-scheme:light dark;--page:light-dark(#E9EDF3,#0A0F1A);--pageInk:light-dark(#111827,#E5E7EB);--pagePanel:light-dark(#FFFFFF,#111827);--pageLine:light-dark(#D6DCE5,#243044)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%}
+body{background:var(--page);color:var(--pageInk);font:15px/1.6 "IBM Plex Sans Arabic","Cairo",system-ui,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.num,bdi.num{white-space:nowrap;font-family:Inter,system-ui,sans-serif;font-feature-settings:"tnum" 1,"lnum" 1}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;letter-spacing:.02em}
+:focus-visible{outline:2px solid var(--ring,#2563EB);outline-offset:2px}
+
+/* ---------- studio layout ---------- */
+.studio{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:100vh}
+.panel{background:var(--pagePanel);border-inline-end:1px solid var(--pageLine);padding:18px 16px 40px;overflow-y:auto;max-height:100vh;position:sticky;top:0}
+.panel h1{font-family:Cairo,sans-serif;font-size:22px;line-height:1.2;margin:0 0 2px}
+.panel .sub{font-size:13px;opacity:.75;margin:0 0 14px}
+.grp{margin:14px 0}
+.grp>label,.grp>.lbl{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--pageLine);background:transparent;border-radius:10px;padding:7px 11px;min-height:38px;font-size:13.5px}
+.seg button[aria-pressed=true]{background:#2563EB;border-color:#2563EB;color:#fff;font-weight:600}
+.edges{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.edges button{border:1px solid var(--pageLine);background:transparent;border-radius:10px;padding:8px 9px;text-align:start;font-size:13px;min-height:44px;line-height:1.3}
+.edges button:hover{border-color:#DC2626}
+.edges button .t{display:block;font-size:11px;opacity:.7}
+.specref{margin-top:14px;font-size:12.5px;border:1px dashed var(--pageLine);border-radius:10px;padding:8px 10px}
+.stage{display:flex;align-items:center;justify-content:center;padding:20px;min-height:100vh;overflow:hidden}
+.fit{transform-origin:center center}
+@media(max-width:900px){.studio{display:flex;flex-direction:column}.stage{order:1;min-height:auto;padding:12px}.panel{order:2;position:static;max-height:none;border-inline-end:0;border-top:1px solid var(--pageLine)}}
+
+/* ---------- device frames ---------- */
+.phone{width:426px;height:898px;border-radius:66px;background:#0b0b0d;padding:12px;box-shadow:0 30px 80px -20px rgba(0,0,0,.55),inset 0 0 0 2px #2a2a2e;position:relative}
+.phone .scr{width:402px;height:874px;border-radius:54px;overflow:hidden;position:relative}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:126px;height:37px;background:#000;border-radius:20px;z-index:60}
+.sbar{position:absolute;top:0;inset-inline:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 34px;font:600 16px Inter,sans-serif;z-index:55;pointer-events:none;color:var(--fg)}
+.homeind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:var(--fg);opacity:.85;z-index:55}
+.laptop{display:flex;flex-direction:column;align-items:center}
+.laptop .lid{background:#0f1115;border-radius:18px 18px 6px 6px;padding:14px 14px 16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5),inset 0 0 0 2px #2a2d33}
+.laptop .scr{width:1280px;height:800px;border-radius:6px;overflow:hidden;position:relative}
+.laptop .base{width:1420px;height:18px;background:linear-gradient(#c9ced6,#9aa1ab);border-radius:0 0 18px 18px;position:relative}
+.laptop .base:before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:180px;height:7px;background:#7c838d;border-radius:0 0 8px 8px}
+
+/* ---------- product tokens (UI-01 §3) ---------- */
+.scr,[data-theme=light]{--bg:#F3F4F6;--fg:#111827;--card:#FFFFFF;--raised:#FFFFFF;--sunk:#F9FAFB;--muted:#F3F4F6;--mfg:#4B5563;--ph:#6B7280;--border:#E5E7EB;--input:#7B8494;--ring:#2563EB;
+ --primary:#2563EB;--onp:#FFFFFF;--phov:#1D4ED8;--psub:#EFF6FF;--ponsub:#1D4ED8;--accent:#F0FDFA;--accon:#0F766E;
+ --danger:#DC2626;--dsurf:#FEF2F2;--don:#991B1B;--warn:#B45309;--wsurf:#FFFBEB;--won:#92400E;--caut:#A16207;--csurf:#FEFCE8;--con:#854D0E;
+ --ok:#15803D;--oksurf:#F0FDF4;--okon:#166534;--info:#0369A1;--isurf:#F0F9FF;--ion:#075985;--off:#B45309;--offsurf:#FFFBEB;--offon:#92400E;
+ --ai:#6D28D9;--aisurf:#F5F3FF;--aion:#5B21B6;--glass:rgba(255,255,255,.62);--glassb:rgba(255,255,255,.55);--blur:20px;
+ --e1:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);--e2:0 4px 8px -2px rgba(16,24,40,.08),0 2px 4px -2px rgba(16,24,40,.06);
+ --e3:0 12px 16px -4px rgba(16,24,40,.10),0 4px 6px -2px rgba(16,24,40,.05);--e4:0 20px 24px -4px rgba(16,24,40,.10),0 8px 8px -4px rgba(16,24,40,.04);
+ --e5:0 24px 48px -12px rgba(16,24,40,.25),0 30px 60px -20px rgba(37,99,235,.35);--scrim:rgba(17,24,39,.48);--g1:rgba(37,99,235,.10);--g2:rgba(13,148,136,.08)}
+[data-theme=dark]{--bg:#0B1220;--fg:#F9FAFB;--card:#111827;--raised:#1A2333;--sunk:#0F172A;--muted:#1F2937;--mfg:#9CA3AF;--ph:#9CA3AF;--border:#243044;--input:#6B7280;--ring:#93C5FD;
+ --primary:#60A5FA;--onp:#0B1220;--phov:#93C5FD;--psub:#172554;--ponsub:#BFDBFE;--accent:#042F2E;--accon:#2DD4BF;
+ --danger:#F87171;--dsurf:#450A0A;--don:#FECACA;--warn:#FBBF24;--wsurf:#451A03;--won:#FDE68A;--caut:#FACC15;--csurf:#422006;--con:#FEF08A;
+ --ok:#4ADE80;--oksurf:#052E16;--okon:#BBF7D0;--info:#38BDF8;--isurf:#082F49;--ion:#BAE6FD;--off:#FBBF24;--offsurf:#451A03;--offon:#FDE68A;
+ --ai:#A78BFA;--aisurf:#2E1065;--aion:#DDD6FE;--glass:rgba(17,24,39,.55);--glassb:rgba(255,255,255,.08);--blur:24px;
+ --e1:0 0 0 1px #243044;--e2:0 0 0 1px #243044,0 6px 14px rgba(0,0,0,.4);--e3:0 12px 24px rgba(0,0,0,.45);--e4:0 24px 48px rgba(0,0,0,.55);--e5:0 30px 60px -20px rgba(96,165,250,.25);--scrim:rgba(0,0,0,.64);--g1:rgba(96,165,250,.10);--g2:rgba(45,212,191,.08)}
+[data-theme=emergency]{--bg:#000;--fg:#FFF;--card:#1C1C1E;--raised:#1C1C1E;--sunk:#000;--muted:#1C1C1E;--mfg:#FFF;--ph:#FFF;--border:#3A3A3C;--input:#FFF;--ring:#FFD60A;
+ --primary:#FFF;--onp:#000;--phov:#E5E5E5;--psub:#1C1C1E;--ponsub:#FFF;--danger:#FF3B30;--dsurf:#7F1D1D;--don:#FFF;--warn:#FFD60A;--wsurf:#FFD60A;--won:#000;
+ --ok:#30D158;--oksurf:#30D158;--okon:#000;--info:#0A84FF;--off:#FF9F0A;--offsurf:#FF9F0A;--offon:#000;--glass:#1C1C1E;--glassb:#3A3A3C;--blur:0px;
+ --e1:none;--e2:none;--e3:none;--e4:none;--e5:none;--scrim:rgba(0,0,0,.85);--g1:transparent;--g2:transparent}
+[data-theme=sunlight]{--bg:#FFF;--fg:#000;--card:#FFF;--raised:#FFF;--sunk:#F3F4F6;--muted:#F3F4F6;--mfg:#1F2937;--ph:#374151;--border:#000;--input:#000;--ring:#0040C1;
+ --primary:#0040C1;--onp:#FFF;--phov:#002E8A;--psub:#E6EEFF;--ponsub:#0040C1;--danger:#B00020;--dsurf:#FFF;--don:#B00020;--warn:#000;--wsurf:#FFD60A;--won:#000;
+ --caut:#000;--csurf:#FFF7B3;--con:#000;--ok:#006B2D;--oksurf:#FFF;--okon:#006B2D;--info:#0040C1;--isurf:#FFF;--ion:#0040C1;--off:#000;--offsurf:#FFD60A;--offon:#000;
+ --glass:#FFF;--glassb:#000;--blur:0px;--e1:0 0 0 2px #000;--e2:0 0 0 2px #000;--e3:0 0 0 2px #000;--e4:0 0 0 2px #000;--e5:none;--g1:transparent;--g2:transparent}
+.scr{transform:translateZ(0)}
+.scr,.themed{background:var(--bg);color:var(--fg);font-size:calc(16px * var(--fs,1))}
+.canvasglow{background:radial-gradient(600px 400px at 85% 0%,var(--g1),transparent 70%),radial-gradient(500px 400px at 0% 100%,var(--g2),transparent 70%),var(--bg)}
+[data-low="1"] .glass{backdrop-filter:none!important;background:var(--card)!important}
+
+/* ---------- product type & components ---------- */
+.h1{font-family:Cairo,sans-serif;font-weight:700;font-size:1.75em;line-height:1.35;margin:0}
+.h2{font-family:Cairo,sans-serif;font-weight:700;font-size:1.375em;line-height:1.4;margin:0}
+.h3{font-family:Cairo,sans-serif;font-weight:600;font-size:1.125em;line-height:1.45;margin:0}
+.bodylg{font-size:1.0625em;line-height:1.65}.sm{font-size:.875em}.cap{font-size:.75em;font-weight:500}.mut{color:var(--mfg)}
+.disp{font-family:Inter,sans-serif;font-weight:800;font-size:2.25em;line-height:1.1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;border:1.5px solid transparent;padding:0 18px;min-height:44px;font-weight:600;font-size:.9375em;transition:background .15s,transform .1s;background:transparent;color:var(--fg)}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--primary);color:var(--onp)}.btn.pri:hover{background:var(--phov)}
+.btn.sec{background:var(--card);border-color:var(--input)}
+.btn.gho{color:var(--primary)}.btn.gho:hover{background:var(--psub)}
+.btn.dan{background:var(--danger);color:#fff}
+[data-theme=emergency] .btn.dan{color:#000}
+.btn[disabled]{opacity:.42;cursor:not-allowed;transform:none}
+.btn.full{width:100%}
+.btn.big{min-height:56px;font-size:1.05em}
+.why{font-size:.8125em;color:var(--warn);margin-top:6px;font-weight:600;display:flex;gap:6px;align-items:center}
+.card{background:var(--card);border-radius:16px;box-shadow:var(--e1);border:1px solid var(--border);padding:16px}
+[data-theme=dark] .card{border-color:transparent}
+.tile{background:var(--card);border-radius:20px;box-shadow:var(--e1);border:1px solid var(--border);padding:14px;transition:transform .15s,box-shadow .15s;text-align:start;display:flex;flex-direction:column;gap:6px}
+button.tile:hover{transform:translateY(-2px);box-shadow:var(--e2)}button.tile:active{transform:scale(.98)}
+.ib{width:36px;height:36px;border-radius:12px;background:var(--psub);color:var(--ponsub);display:grid;place-items:center;flex:none}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:.8125em;font-weight:600;border:1.5px solid currentColor;white-space:nowrap}
+.chip.ana{background:var(--danger);border-color:var(--danger);color:#fff}
+[data-theme=emergency] .chip.ana{color:#000}
+.chip.self{color:var(--warn)}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:6px;padding:3px 9px;font-size:.8125em;font-weight:600;transition:background-color .25s,color .25s}
+.b-pending{background:#DBEAFE;color:#1D4ED8}.b-partial{background:#FEF3C7;color:#92400E}.b-done{background:#DCFCE7;color:#166534}.b-cancel{background:#E5E7EB;color:#374151}.b-exp{background:#F3F4F6;color:#374151}
+[data-theme=dark] .b-pending{background:#1E3A8A;color:#BFDBFE}[data-theme=dark] .b-partial{background:#78350F;color:#FDE68A}[data-theme=dark] .b-done{background:#14532D;color:#BBF7D0}[data-theme=dark] .b-cancel{background:#374151;color:#E5E7EB}
+.badge .lab{animation:lab .25s ease}@keyframes lab{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.sev{border-radius:8px;padding:12px 14px;border-inline-start:3px solid var(--c);background:var(--s);color:var(--o);display:flex;gap:10px}
+.sev.ci{--c:var(--danger);--s:var(--dsurf);--o:var(--don)}.sev.mj{--c:var(--warn);--s:var(--wsurf);--o:var(--won)}.sev.md{--c:var(--caut);--s:var(--csurf);--o:var(--con)}.sev.mn{--c:var(--info);--s:var(--isurf);--o:var(--ion)}.sev.okb{--c:var(--ok);--s:var(--oksurf);--o:var(--okon)}.sev.aib{--c:var(--ai);--s:var(--aisurf);--o:var(--aion)}
+.sev.pulse{animation:pulse .6s ease 1}@keyframes pulse{0%{box-shadow:0 0 0 0 var(--c)}50%{box-shadow:0 0 0 4px var(--c)}100%{box-shadow:0 0 0 0 transparent}}
+.sev .ttl{font-weight:700;font-family:Cairo,sans-serif}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-weight:600;font-size:.875em}
+.inp{height:44px;border-radius:10px;border:1.5px solid var(--input);background:var(--card);padding:0 12px;color:var(--fg);font-size:16px}
+textarea.inp{height:80px;padding:10px 12px;resize:vertical}
+.inp:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 30%,transparent)}
+.glass{background:var(--glass);backdrop-filter:blur(var(--blur)) saturate(180%);-webkit-backdrop-filter:blur(var(--blur)) saturate(180%);border:1px solid var(--glassb)}
+.ribbon{background:var(--offsurf);color:var(--offon);font-weight:700;font-size:.875em;padding:6px 14px;display:flex;gap:8px;align-items:center;justify-content:center;animation:down .2s ease}
+@keyframes down{from{transform:translateY(-100%)}to{transform:none}}
+.toastwrap{position:absolute;inset-inline:0;bottom:110px;display:flex;justify-content:center;z-index:70;pointer-events:none}
+.toast{background:#111827;color:#fff;border-radius:12px;padding:10px 16px;font-weight:600;box-shadow:var(--e3);animation:rise .15s ease;pointer-events:auto}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s ease}
+.scrim.center{align-items:center}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.sheet{background:var(--card);width:100%;border-radius:28px 28px 0 0;padding:10px 18px 40px;max-height:92%;overflow:auto;animation:sheet .32s cubic-bezier(.05,.7,.1,1)}
+@keyframes sheet{from{transform:translateY(100%)}to{transform:none}}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--border);margin:0 auto 12px}
+.dlg{background:var(--card);border-radius:16px;box-shadow:var(--e4);width:min(560px,92%);padding:20px;animation:dlg .25s cubic-bezier(.05,.7,.1,1)}
+@keyframes dlg{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+.row{display:flex;align-items:center;gap:10px}.col{display:flex;flex-direction:column;gap:10px}.sp{flex:1}.wrap{flex-wrap:wrap}
+.scroll{overflow-y:auto}
+.hide{display:none!important}
+.divider{height:1px;background:var(--border);margin:8px 0}
+.tbl{width:100%;border-collapse:collapse;font-size:.875em}
+.tbl th{background:var(--sunk);text-align:start;font-weight:600;padding:9px 10px;position:sticky;top:0}
+.tbl td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:middle}
+.tbl td.n{text-align:end}
+.flash{animation:flash 1.2s ease 1}@keyframes flash{0%,30%{background:var(--wsurf)}100%{background:transparent}}
+.stepper{display:inline-flex;align-items:center;border:1.5px solid var(--input);border-radius:10px;overflow:hidden}
+.stepper button{width:36px;height:36px;border:0;background:var(--muted);font-weight:700}
+.stepper span{min-width:40px;text-align:center}
+.seal-stamp{animation:stamp .5s cubic-bezier(.3,1.6,.5,1) 1}@keyframes stamp{0%{transform:scale(1.25);opacity:0}100%{transform:scale(1);opacity:1}}
+.ring-rot{transform-origin:50% 50%;animation:rot 24s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
+.spin{animation:rot 1.2s linear infinite;transform-origin:50% 50%}
+.shimmer{background:linear-gradient(90deg,var(--muted) 0%,var(--border) 50%,var(--muted) 100%);background-size:200% 100%;animation:shim 1.2s linear infinite;border-radius:8px}
+@keyframes shim{from{background-position:200% 0}to{background-position:-200% 0}}
+[dir=rtl] .shimmer{animation-direction:reverse}
+.typing span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ai);margin:0 2px;animation:dot 1s infinite}.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,100%{opacity:.3}50%{opacity:1}}
+.rm *,.rm *:before,.rm *:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.15s!important}
+@media (prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.15s!important}}
+[data-theme=emergency] *{transition:none!important;animation:none!important}
+[data-theme=emergency] .allow-anim,[data-theme=emergency] .allow-anim *{animation:revert!important}
+.em-h{font-family:Cairo,sans-serif;font-weight:800;font-size:1.75em;line-height:1.3}
+.em-b{font-size:1.25em;font-weight:600;line-height:1.5}
+.em-l{font-size:1.125em;font-weight:700}
+.em-d{font-family:Inter,sans-serif;font-weight:800;font-size:2.5em;line-height:1.1}
+.em-btn{min-height:64px;border-radius:16px;font-family:Cairo,sans-serif;font-weight:800;font-size:1.25em;border:0;width:100%}
+.prog{height:8px;border-radius:4px;background:#2b2b2e;overflow:hidden}.prog>i{display:block;height:100%;background:#30D158;transition:width .2s linear!important}
+.kbd{font:600 11px Inter,sans-serif;border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--mfg)}
+.navitem{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:10px;font-weight:500;color:var(--fg);border:0;background:transparent;width:100%;text-align:start;position:relative}
+.navitem[aria-current=page]{background:var(--psub);color:var(--ponsub);font-weight:700}
+.navitem[aria-current=page]:before{content:"";position:absolute;inset-inline-start:-12px;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--primary)}
+.tabbar{position:absolute;bottom:0;inset-inline:0;height:86px;display:flex;padding:6px 8px 30px;z-index:40}
+.tabbar button{flex:1;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--mfg)}
+.tabbar button[aria-current=page]{color:var(--primary)}
+.idcard{aspect-ratio:1.586;width:100%;position:relative;transform-style:preserve-3d;border-radius:20px;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.idface{position:absolute;inset:0;border-radius:20px;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.idfront{background:linear-gradient(135deg,#2563EB,#0D9488);color:#fff;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between}
+[data-theme=dark] .idfront{background:linear-gradient(135deg,#1D4ED8,#0F766E)}
+.idback{transform:rotateY(180deg);background:#fff;color:#000;display:flex;align-items:center;gap:14px;padding:14px}
+.guil{position:absolute;inset:0;opacity:.09;background:repeating-radial-gradient(circle at 70% 120%,#fff 0 1px,transparent 1px 7px)}
+.foil{position:absolute;inset:0;mix-blend-mode:color-dodge;opacity:.35;background:conic-gradient(from var(--fa,0deg) at var(--fx,50%) var(--fy,50%),#ff9ad5,#9ae6ff,#b4ff9a,#fff59a,#ff9ad5)}
+.sheen{position:absolute;inset:0;background:radial-gradient(260px 200px at var(--sx,50%) var(--sy,30%),rgba(255,255,255,.28),transparent 60%)}
+.idcard .lift{transform:translateZ(16px)}
+.morph{transition:all .25s cubic-bezier(.2,0,0,1)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script>
+{
+const {useState,useEffect,useRef,useMemo,useCallback,createContext,useContext}=React;
+const html=htm.bind(React.createElement);
+const Ctx=createContext(null);
+const useApp=()=>useContext(Ctx);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const HANDLED=new Set();
+function useCmd(cmd,scope,fn){useEffect(()=>{if(!cmd)return;const k=scope+':'+cmd.n;if(HANDLED.has(k)||Date.now()-cmd.t>2500)return;HANDLED.add(k);fn(cmd.name)},[cmd&&cmd.n])}
+const HAS_GL=(()=>{try{const c=document.createElement('canvas');const g=c.getContext('webgl');if(g){const e=g.getExtension('WEBGL_lose_context');e&&e.loseContext();return true}}catch(e){}return false})();
+const fmt=s=>{const m=Math.floor(s/60),x=s%60;return `${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`};
+
+/* ---------------- icons (simple inline SVG) ---------------- */
+const P={
+ home:'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+ file:'M6 2h9l5 5v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM14 2v6h6M8 13h8M8 17h6',
+ rx:'M7 3h10a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6',
+ spark:'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+ user:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+ shield:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
+ shieldok:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5',
+ siren:'M7 18v-6a5 5 0 0 1 10 0v6M5 21h14M12 3v2M4.2 6.2l1.4 1.4M19.8 6.2l-1.4 1.4',
+ tri:'M12 3l10 18H2zM12 10v5M12 18h.01',
+ oct:'M8 2h8l6 6v8l-6 6H8l-6-6V8zM9 9l6 6M15 9l-6 6',
+ circ:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 8v5M12 16h.01',
+ info:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5h.01',
+ pill:'M10.5 20.5a5 5 0 0 1-7-7l10-10a5 5 0 0 1 7 7zM8.5 8.5l7 7',
+ qr:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM18 18h3v3h-3zM14 20h2M20 14v2',
+ phone:'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
+ wifioff:'M2 2l20 20M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.7M19 13a10 10 0 0 0-2.4-1.7M12 20h.01',
+ clock:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+ check:'M5 12l5 5L20 7',x:'M6 6l12 12M18 6L6 18',
+ chev:'M15 6l-6 6 6 6',plus:'M12 5v14M5 12h14',minus:'M5 12h14',
+ cam:'M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+ torch:'M8 2h8l-1 6H9zM9 8h6v12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2zM12 12v3',
+ search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
+ users:'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 7.5M22 21a7 7 0 0 0-4-6.3',
+ log:'M5 3h11l3 3v15H5zM8 9h8M8 13h8M8 17h5',lock:'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+ key:'M15 7a4 4 0 1 1-3.9 5H3v4h3v-2h2v2h3.1A4 4 0 0 1 15 7z',
+ sun:'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+ moon:'M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z',
+ sunrise:'M17 18a5 5 0 0 0-10 0M12 2v7M4.2 10.2l1.4 1.4M1 18h2M21 18h2M18.4 11.6l1.4-1.4M23 22H1M8 6l4-4 4 4',
+ map:'M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14',
+ send:'M22 2L11 13M22 2l-7 20-4-9-9-4z',ambul:'M3 6h11v10H3zM14 9h4l3 4v3h-7M7 9v4M5 11h4M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+ face:'M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4M9 9v1M15 9v1M9 15c1.5 1.3 4.5 1.3 6 0',
+ eye:'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+ bell:'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0',
+ gear:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+ trash:'M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14',
+ grip:'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
+};
+const NOMIRROR=new Set(['check','phone','clock','qr','cam','torch','pill']);
+function I({n,s=20,c,mirror}){return html`<svg width=${s} height=${s} viewBox="0 0 24 24" fill="none" stroke=${c||'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style=${mirror?{transform:'scaleX(-1)'}:null}><path d=${P[n]||''}/></svg>`}
+
+/* ---------------- shared widgets ---------------- */
+const RXS={pending:['b-pending','قيد الصرف','clock'],partially_dispensed:['b-partial','اتصرف جزء منها','circ'],dispensed:['b-done','اتصرفت بالكامل','check'],cancelled:['b-cancel','اتلغت','x'],expired:['b-exp','انتهت صلاحيتها','clock']};
+function Badge({st}){const [c,l,i]=RXS[st];return html`<span class=${'badge morph '+c} aria-label=${'الحالة: '+l}><${I} n=${i} s=${14}/><span class="lab" key=${st}>${l}</span></span>`}
+const SEVM={contraindicated:['ci','oct','ممنوع'],major:['mj','tri','خطير'],moderate:['md','circ','متوسط'],minor:['mn','info','بسيط']};
+function Sev({sev,title,children,action,pulse,role}){const [k,ic,lb]=SEVM[sev];return html`<div class=${'sev '+k+(pulse?' pulse':'')} role=${role||(sev==='contraindicated'||sev==='major'?'alert':'status')}><span style=${{color:'var(--c)'}}><${I} n=${ic} s=${22}/></span><div class="col" style=${{gap:'4px',flex:1}}><div class="ttl">${lb} — ${title}</div>${children}${action}</div></div>`}
+function Toasts(){const {toasts}=useApp();return html`<div class="toastwrap" aria-live="polite">${toasts.map(t=>html`<div class="toast" key=${t.id}>${t.msg}</div>`)}</div>`}
+function Ribbon({label}){const {offline}=useApp();if(!offline)return null;return html`<div class="ribbon" role="status"><${I} n="wifioff" s=${16}/>${label||'أوفلاين — آخر تحديث من ساعتين'}</div>`}
+function Ring({left,total,size=64,warnAt=60,label}){const r=size/2-5,C=2*Math.PI*r,p=Math.max(0,left/total);const warn=left<=warnAt;return html`<div style=${{position:'relative',width:size+'px',height:size+'px'}} role="timer" aria-label=${'فاضل '+fmt(left)}><svg width=${size} height=${size}><circle cx=${size/2} cy=${size/2} r=${r} stroke="var(--border)" strokeWidth="5" fill="none"/><circle cx=${size/2} cy=${size/2} r=${r} stroke=${warn?'var(--warn)':'var(--primary)'} strokeWidth="5" fill="none" strokeDasharray=${C} strokeDashoffset=${C*(1-p)} transform=${`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round"/></svg><div class="num" style=${{position:'absolute',inset:0,display:'grid',placeItems:'center',fontWeight:warn?800:600,fontSize:size>70?'15px':'12px'}}>${label||fmt(left)}</div></div>`}
+function useForce(t){const {setForce}=useApp();useEffect(()=>{setForce(t);return()=>setForce(null)},[t])}
+function useCountdown(total,running,speed=1){const [left,setLeft]=useState(total);useEffect(()=>{setLeft(total)},[total]);useEffect(()=>{if(!running)return;const id=setInterval(()=>setLeft(l=>Math.max(0,l-speed)),1000);return()=>clearInterval(id)},[running,speed]);return [left,setLeft]}
+
+/* QR: illustrative pattern, not scannable */
+function FakeQR({seed=7,size=220}){const ref=useRef();useEffect(()=>{const c=ref.current,x=c.getContext('2d');const N=29,m=size/(N+8);x.fillStyle='#fff';x.fillRect(0,0,size,size);let s=seed;const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647};x.fillStyle='#000';
+ const fin=(a,b)=>{x.fillRect((a+4)*m,(b+4)*m,7*m,7*m);x.fillStyle='#fff';x.fillRect((a+5)*m,(b+5)*m,5*m,5*m);x.fillStyle='#000';x.fillRect((a+6)*m,(b+6)*m,3*m,3*m)};
+ for(let i=0;i<N;i++)for(let j=0;j<N;j++){const inF=(i<8&&j<8)||(i>N-9&&j<8)||(i<8&&j>N-9);if(!inF&&rnd()>.52)x.fillRect((i+4)*m,(j+4)*m,m+.3,m+.3)}fin(0,0);fin(N-7,0);fin(0,N-7)},[seed,size]);
+ return html`<canvas ref=${ref} width=${size} height=${size} style=${{width:size+'px',height:size+'px',borderRadius:'8px',background:'#fff'}} aria-label="كود QR توضيحي"/>`}
+
+/* Rx authenticity seal (UI-02 §6.3.1) */
+const SEAL={verifying:['#9CA3AF','بنتأكد…','clock'],authentic:['#15803D','موثّقة','shieldok'],offline:['#15803D','موثّقة أوفلاين','shieldok'],failed:['#DC2626','مش سليمة','x'],grey:['#6B7280','غير نشطة','clock']};
+function Seal({state='authentic',size=96,stamp}){const [c,l,ic]=SEAL[state];const id='sp'+state+size;const {reduced}=useApp();
+ return html`<div class=${stamp&&!reduced?'seal-stamp':''} style=${{width:size+'px',height:size+'px',flex:'none'}} role="img" aria-label=${'ختم التوثيق: '+l}>
+ <svg viewBox="0 0 100 100" width=${size} height=${size}><defs><path id=${id} d="M50 50 m-38 0 a38 38 0 1 1 76 0 a38 38 0 1 1 -76 0"/></defs>
+ <circle cx="50" cy="50" r="47" fill=${state==='failed'?'#FEF2F2':'#fff'} stroke=${c} strokeWidth=${state==='offline'?2:3} strokeDasharray=${state==='verifying'?'6 5':null} class=${state==='verifying'?'spin':''}/>
+ <g class=${state==='authentic'&&!reduced?'ring-rot':''}><text fontSize="7.2" fill=${c} fontFamily="Inter, IBM Plex Sans Arabic" fontWeight="600"><textPath href=${'#'+id}>SmartHealth • روشتة موثّقة • Ed25519 • SmartHealth • روشتة موثّقة •</textPath></text></g>
+ <circle cx="50" cy="50" r="28" fill=${c} opacity=${state==='grey'?.5:1}/>
+ <g transform="translate(38 38)" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d=${P[ic]} transform="scale(1)"/></g>
+ ${state==='failed'?html`<path d="M30 25 L46 48 L38 56 L60 80" stroke="#7F1D1D" strokeWidth="2.5" fill="none"/>`:null}
+ </svg></div>`}
+
+/* ---------------- AI orb (raw WebGL fragment shader, UI-02 §6.4) ---------------- */
+const ORB={idle:{a:[.486,.227,.929],b:[.145,.388,.922],amp:.08,f:1.2,sp:.25,l:'أنا هنا لو محتاجني'},listening:{a:[.055,.647,.914],b:[.078,.722,.651],amp:.14,f:1.6,sp:.6,l:'سامعك…'},thinking:{a:[.545,.361,.965],b:[.388,.4,.945],amp:.18,f:2.4,sp:1,l:'بفكّر…'},guidance:{a:[.078,.722,.651],b:[.133,.773,.369],amp:.10,f:1,sp:.35,l:'دي إرشادات عامة'},urgent:{a:[.961,.62,.043],b:[.918,.345,.047],amp:.16,f:1.8,sp:.8,l:'محتاج تشوف دكتور خلال ٢٤ ساعة'},emergency:{a:[.937,.267,.267],b:[.725,.11,.11],amp:.22,f:2,sp:1.2,l:'طوارئ'},unavailable:{a:[.61,.64,.69],b:[.61,.64,.69],amp:0,f:1,sp:0,l:'المساعد مش متاح دلوقتي'}};
+const FS=`precision mediump float;uniform vec2 R;uniform float T,A,F;uniform vec3 CA,CB;
+float h(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float n(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),mix(mix(h(i+vec3(0,0,1)),h(i+vec3(1,0,1)),f.x),mix(h(i+vec3(0,1,1)),h(i+vec3(1,1,1)),f.x),f.y),f.z);}
+void main(){vec2 uv=(gl_FragCoord.xy/R)*2.-1.;float a=atan(uv.y,uv.x),r=length(uv);float k=n(vec3(cos(a)*F,sin(a)*F,T))-.5;float e=.78+k*A*1.6;
+if(r>e+.02){gl_FragColor=vec4(0.);return;}float q=clamp(r/e,0.,1.);float z=sqrt(1.-q*q);vec3 N=normalize(vec3(uv/e,z));float m=n(N*F*1.5+vec3(T*.7));
+vec3 L=normalize(vec3(-.4,.6,.8));vec3 c=mix(CA,CB,clamp(.5+uv.y*.5+(m-.5)*.6,0.,1.));c*=.55+.45*max(dot(N,L),0.);
+c+=pow(max(dot(reflect(-L,N),vec3(0,0,1)),0.),24.)*.6+pow(1.-z,2.5)*.45;float al=smoothstep(e+.02,e-.01,r);gl_FragColor=vec4(c*al,al);}`;
+function Orb({state='idle',size=120}){const ref=useRef();const st=useRef(state);st.current=state;const {reduced,tier}=useApp();const [fb,setFb]=useState(false);
+ useEffect(()=>{if(tier!=='A'&&tier!=='B'){setFb(true);return}const c=ref.current;const gl=c&&c.getContext('webgl',{premultipliedAlpha:true,alpha:true,antialias:true});if(!gl){setFb(true);return}
+  const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o};const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){setFb(true);return}gl.useProgram(pr);const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  const U=k=>gl.getUniformLocation(pr,k);const dpr=Math.min(window.devicePixelRatio||1,tier==='A'?1.75:1.25);c.width=size*dpr;c.height=size*dpr;gl.viewport(0,0,c.width,c.height);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+  let cur={...ORB.idle,a:[...ORB.idle.a],b:[...ORB.idle.b]},t=0,last=performance.now(),raf,frame=0;
+  const draw=now=>{const dt=Math.min(.05,(now-last)/1000);last=now;const tg=ORB[st.current]||ORB.idle;const k=1-Math.exp(-dt*6);['amp','f','sp'].forEach(x=>cur[x]+=(tg[x]-cur[x])*k);for(let i=0;i<3;i++){cur.a[i]+=(tg.a[i]-cur.a[i])*k;cur.b[i]+=(tg.b[i]-cur.b[i])*k}
+   t+=dt*(reduced?0:cur.sp);frame++;if(tier==='B'&&frame%2){raf=requestAnimationFrame(draw);return}
+   gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.uniform2f(U('R'),c.width,c.height);gl.uniform1f(U('T'),t);gl.uniform1f(U('A'),reduced?cur.amp*.3:cur.amp);gl.uniform1f(U('F'),cur.f);gl.uniform3fv(U('CA'),cur.a);gl.uniform3fv(U('CB'),cur.b);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+   raf=requestAnimationFrame(draw)};raf=requestAnimationFrame(draw);return()=>{cancelAnimationFrame(raf);const ex=gl.getExtension('WEBGL_lose_context');ex&&ex.loseContext()}},[tier,reduced,size]);
+ if(fb){const o=ORB[state]||ORB.idle;const rgb=v=>`rgb(${v.map(x=>Math.round(x*255)).join(',')})`;return html`<div aria-hidden="true" style=${{width:size+'px',height:size+'px',borderRadius:'50%',background:`radial-gradient(circle at 35% 30%,#fff8,transparent 30%),linear-gradient(160deg,${rgb(o.a)},${rgb(o.b)})`,boxShadow:`0 10px 40px -10px ${rgb(o.a)}`}}/>`}
+ return html`<canvas ref=${ref} aria-hidden="true" style=${{width:size+'px',height:size+'px',filter:`drop-shadow(0 12px 30px rgba(${(ORB[state]||ORB.idle).a.map(x=>Math.round(x*255)).join(',')},.45))`}}/>`}
+
+/* ---------------- 3D face mesh scanner (canvas, UI-02 §6.1) ---------------- */
+const SCAN_COL={searching:'rgba(255,255,255,.7)',aligning:'#FBBF24',aligned:'#2DD4BF',challenge:'#60A5FA',capturing:'#22C55E',uploading:'#22C55E',success:'#22C55E',failed:'#F59E0B',locked:'#EF4444'};
+function FaceMesh({phase,pose,sweep,w=378,h=520}){const ref=useRef();const {tier,reduced}=useApp();
+ useEffect(()=>{const c=ref.current,x=c.getContext('2d');const dpr=Math.min(devicePixelRatio||1,2);c.width=w*dpr;c.height=h*dpr;x.setTransform(dpr,0,0,dpr,0,0);
+  const cx=w/2,cy=h*.42,RX=w*.31,RY=RX*1.3;
+  // simulated camera feed
+  const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#1f2a37');g.addColorStop(1,'#0b0f16');x.fillStyle=g;x.fillRect(0,0,w,h);
+  const hg=x.createRadialGradient(cx,cy-10,10,cx,cy,RY*1.1);hg.addColorStop(0,'#7a6a5c');hg.addColorStop(.7,'#4a3f37');hg.addColorStop(1,'rgba(30,25,22,0)');x.fillStyle=hg;x.beginPath();x.ellipse(cx+pose.yaw*RX*.25,cy,RX*.92,RY*.95,0,0,7);x.fill();
+  x.fillStyle='#2a221c';x.beginPath();x.ellipse(cx,cy+RY*1.55,RX*1.6,RY*.8,0,0,7);x.fill();
+  // vignette with oval cut-out
+  x.save();x.fillStyle='rgba(0,0,0,.55)';x.beginPath();x.rect(0,0,w,h);x.moveTo(cx+RX,cy);x.ellipse(cx,cy,RX,RY,0,0,Math.PI*2,true);x.fill('evenodd');x.restore();
+  const col=SCAN_COL[phase]||'#fff';
+  x.lineWidth=3;x.strokeStyle=col;x.beginPath();x.ellipse(cx,cy,RX,RY,0,0,7);x.stroke();
+  if(tier==='C'||tier==='E'||phase==='locked')return;
+  const rot=(v)=>{let [a,b,z]=v;const cy_=Math.cos(pose.yaw),sy=Math.sin(pose.yaw),cp=Math.cos(pose.pitch),sp=Math.sin(pose.pitch);let a1=a*cy_+z*sy,z1=-a*sy+z*cy_;let b1=b*cp-z1*sp,z2=b*sp+z1*cp;return [a1,b1,z2]};
+  const prj=v=>{const f=3,s=f/(f+v[2]);return [cx+v[0]*s*RX*.95,cy+v[1]*s*RY*.95,v[2]]};
+  // depth rings
+  [-.3,0,.3].forEach(hh=>{const rr=Math.sqrt(1-hh*hh);let prev=null;for(let i=0;i<=96;i++){const a=i/96*Math.PI*2;const v=rot([rr*Math.cos(a),hh,rr*Math.sin(a)]);const p=prj(v);if(prev){const front=(v[2]+prev[2])/2<0;x.strokeStyle=col;x.globalAlpha=front?1:.28;x.lineWidth=front?2.4:1;x.beginPath();x.moveTo(prev[0],prev[1]);x.lineTo(p[0],p[1]);x.stroke()}prev=p}});x.globalAlpha=1;
+  // contour mesh (front hemisphere lat-long grid inside face region)
+  const rows=11,cols=13;const pts=[];for(let i=0;i<rows;i++){pts.push([]);const la=-1.05+i*(2.1/(rows-1));for(let j=0;j<cols;j++){const lo=-1.15+j*(2.3/(cols-1));const v=rot([Math.sin(lo)*Math.cos(la)*.86,Math.sin(la)*.92,-Math.cos(lo)*Math.cos(la)*.86]);pts[i].push([...prj(v),v[2]])}}
+  if(tier==='A'){x.shadowColor=col;x.shadowBlur=6}
+  x.strokeStyle=col;x.lineWidth=.7;for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const p=pts[i][j];if(p[3]>-.05)continue;x.globalAlpha=Math.min(1,-p[3]*1.4)*.75;if(j<cols-1&&pts[i][j+1][3]<-.05){x.beginPath();x.moveTo(p[0],p[1]);x.lineTo(pts[i][j+1][0],pts[i][j+1][1]);x.stroke()}if(i<rows-1&&pts[i+1][j][3]<-.05){x.beginPath();x.moveTo(p[0],p[1]);x.lineTo(pts[i+1][j][0],pts[i+1][j][1]);x.stroke()}x.fillStyle=col;x.beginPath();x.arc(p[0],p[1],1.6,0,7);x.fill()}
+  x.globalAlpha=1;x.shadowBlur=0;
+  if(sweep!=null&&!reduced){const yy=cy-RY+sweep*RY*2;const sg=x.createLinearGradient(0,yy-24,0,yy+24);sg.addColorStop(0,'rgba(34,197,94,0)');sg.addColorStop(.5,'rgba(34,197,94,.55)');sg.addColorStop(1,'rgba(34,197,94,0)');x.save();x.beginPath();x.ellipse(cx,cy,RX,RY,0,0,7);x.clip();x.fillStyle=sg;x.fillRect(0,yy-24,w,48);x.restore()}
+ },[phase,pose.yaw,pose.pitch,sweep,tier,reduced,w,h]);
+ return html`<canvas ref=${ref} style=${{width:w+'px',height:h+'px',display:'block'}} aria-hidden="true"/>`}
+
+/* 3D tilt medical ID card (UI-02 §6.2) */
+function IdCard({onOpenEmergency}){const {reduced,tier,offline}=useApp();const [flip,setFlip]=useState(false);const [t,setT]=useState({x:0,y:0,px:50,py:30});const can=!reduced&&(tier==='A'||tier==='B')&&!flip;
+ const mv=e=>{if(!can)return;const r=e.currentTarget.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;setT({x:(py-.5)*-2*12,y:(px-.5)*2*12,px:px*100,py:py*100})};
+ const style={transform:`perspective(1000px) rotateX(${can?t.x:0}deg) rotateY(${(flip?180:0)+(can?t.y:0)}deg)`,boxShadow:'var(--e5)',transition:can?'transform .12s ease-out':'transform .5s cubic-bezier(.2,.8,.2,1)'};
+ return html`<div class="col" style=${{gap:'6px'}}><button class="idcard" style=${style} onPointerMove=${mv} onPointerLeave=${()=>setT({x:0,y:0,px:50,py:30})} onClick=${()=>setFlip(f=>!f)} aria-pressed=${flip} aria-label="الكارت الطبي. فصيلة الدم O موجب، انت اللي كاتبها. حساسية مفرطة من البنسلين، وحساسية خفيفة من الإيبوبروفين. ربو. اضغط عشان تقلب الكارت">
+  <div class="idface idfront"><div class="guil"></div>${tier==='A'&&!reduced?html`<div class="foil" style=${{'--fa':t.y*8+'deg','--fx':t.px+'%','--fy':t.py+'%'}}></div>`:null}<div class="sheen" style=${{'--sx':t.px+'%','--sy':t.py+'%'}}></div>
+   <div class="row lift" style=${{justifyContent:'space-between'}}><div class="row" style=${{gap:'6px'}}><${I} n="shield" s=${18}/><b style=${{fontFamily:'Cairo'}}>الكارت الطبي</b></div><span class="chip" style=${{borderColor:'#fff8',color:'#fff',fontSize:'11px'}}>${offline?'أوفلاين — آخر تحديث من ساعتين':'محدّث'}</span></div>
+   <div class="row lift" style=${{justifyContent:'space-between',alignItems:'flex-end'}}><div><div style=${{fontWeight:700,fontSize:'17px'}}>منى عادل</div><div class="mono" style=${{fontSize:'12px',opacity:.9}}>SH-7K2M9Q4D</div></div>
+    <div style=${{textAlign:'center'}}><bdi class="num" style=${{fontSize:'34px',fontWeight:800,lineHeight:1}}>O+</bdi><div style=${{fontSize:'10.5px',background:'#FBBF24',color:'#451A03',borderRadius:'6px',padding:'0 6px',fontWeight:700}}>انت اللي كاتبها</div></div></div>
+   <div class="row wrap lift" style=${{gap:'5px'}}><span class="chip" style=${{background:'#DC2626',borderColor:'#fff',color:'#fff'}}><${I} n="siren" s=${13}/>حساسية مفرطة: Penicillin</span><span class="chip" style=${{color:'#fff',borderColor:'#fff9'}}>Ibuprofen</span><span class="chip" style=${{color:'#fff',borderColor:'#fff9'}}>ربو</span></div>
+  </div>
+  <div class="idface idback"><${FakeQR} seed=${11} size=${130}/><div class="col" style=${{gap:'4px',textAlign:'start'}}><b>ورّي الكود ده للمسعف لو مقدرتش تتكلم</b><span class="sm">جهتين طوارئ</span><span class="cap num">اتعمل 20 نوفمبر · صالح لحد 20 ديسمبر</span></div></div>
+ </button><div class="row cap mut" style=${{justifyContent:'space-between'}}><span>اضغط عشان تقلب الكارت · حرّك الماوس عشان تميّله</span><button class="btn gho" style=${{minHeight:'32px',padding:'0 8px',fontSize:'12px'}} onClick=${onOpenEmergency}>افتح كارت الطوارئ</button></div></div>`}
+
+/* ---------------- PATIENT (mobile) ---------------- */
+const RED=['صدر','الصدر','نفسي','ضيق','تنميل','وشي مايل','مش قادر اتكلم','اغماء','إغماء','chest','breath','stroke','عرق'];
+const CRISIS=['انتحر','أنتحر','اموت نفسي','أذي نفسي','اذي نفسي','suicide'];
+function Patient({cmd}){const app=useApp();const [tab,setTab]=useState('home');const [view,setView]=useState(null);const [rxSt,setRxSt]=useState('pending');const [doses,setDoses]=useState({am:true,pm:false});
+ useCmd(cmd,'patient',n=>{if(n==='redflag'){setTab('ai');setView(null)}if(n==='aidown'){setTab('ai');setView(null)}if(n==='breakglass'){setTab('acct');setView('bg')}if(n==='qrexpire'){setTab('rx');setView('qr')}if(n==='enrol'){setTab('acct');setView('enrol')}if(n==='card'){setView('ecard')}});
+ useEffect(()=>{app.report(view==='ecard'?'M-PAT-11 Emergency card':view==='qr'?'M-PAT-08 Pickup QR':view==='rxd'?'M-PAT-07D Rx detail':view==='enrol'?'M-PAT-12 Face enrolment':view==='bg'?'M-PAT-16 Break-glass detail':view==='contacts'?'M-PAT-10 Emergency contacts':{home:'M-PAT-04 Home',hist:'M-PAT-05 History',rx:'M-PAT-07 Prescriptions',ai:'M-PAT-14 Assistant',acct:'M-PAT-15 Account'}[tab])},[tab,view]);
+ if(view==='ecard')return html`<${EmergencyCard} onClose=${()=>setView(null)}/>`;
+ const body=view==='rxd'?html`<${RxDetail} st=${rxSt} onBack=${()=>setView(null)} onShow=${()=>setView('qr')}/>`:view==='qr'?html`<${PickupQR} cmd=${cmd} onBack=${()=>setView('rxd')} onDispensed=${()=>{setRxSt('dispensed');setView('rxd')}}/>`:view==='enrol'?html`<${Enrol} onBack=${()=>setView(null)}/>`:view==='bg'?html`<${BreakGlass} onBack=${()=>setView(null)}/>`:view==='contacts'?html`<${Contacts} onBack=${()=>setView(null)}/>`:
+  tab==='home'?html`<${PHome} go=${(t,v)=>{setTab(t);setView(v||null)}} doses=${doses} setDoses=${setDoses} rxSt=${rxSt}/>`:tab==='hist'?html`<${PHistory}/>`:tab==='rx'?html`<${PRxList} st=${rxSt} open=${()=>setView('rxd')}/>`:tab==='ai'?html`<${Assistant} cmd=${cmd}/>`:html`<${PAccount} go=${setView}/>`;
+ const tabs=[['home','الرئيسية','home'],['hist','ملفي','file'],['rx','روشتاتي','rx'],['ai','المساعد','spark'],['acct','حسابي','user']];
+ return html`<div class="canvasglow" style=${{position:'absolute',inset:0,display:'flex',flexDirection:'column'}}><div style=${{height:'54px',flex:'none'}}></div><${Ribbon}/><div class="scroll" style=${{flex:1,padding:'8px 16px 110px'}}>${body}</div>
+ <nav class="tabbar glass" aria-label="التنقل">${tabs.map(([k,l,ic])=>html`<button key=${k} aria-current=${tab===k&&!view?'page':null} onClick=${()=>{setTab(k);setView(null)}}><${I} n=${ic} s=${24}/>${l}</button>`)}</nav></div>`}
+
+function PHome({go,doses,setDoses,rxSt}){const app=useApp();const hour=new Date().getHours();const g=hour<12?'صباح الخير يا منى 👋':hour<17?'أهلاً يا منى 👋':'مساء الخير يا منى 👋';
+ return html`<div class="col" style=${{gap:'14px'}}><div class="row"><div class="sp"><h1 class="h1">${g}</h1><div class="mut sm">عندك جرعة الساعة <bdi class="num">9:00 PM</bdi></div></div><button class="btn gho" aria-label="الإعدادات" onClick=${()=>go('acct')}><${I} n="gear"/></button></div>
+ <${IdCard} onOpenEmergency=${()=>app.fire('card')}/>
+ <div style=${{display:'grid',gridTemplateColumns:app.fs>=1.3?'1fr':'1fr 1fr',gap:'12px'}}>
+  <div class="tile"><div class="row"><span class="ib"><${I} n="pill" s=${18}/></span><b class="h3" style=${{fontSize:'1em'}}>جرعات النهارده</b></div>
+   ${[['am','الصبح','9:00 AM','sunrise'],['pm','بالليل','9:00 PM','moon']].map(([k,l,t,ic])=>html`<button key=${k} class="row" style=${{border:0,background:'transparent',padding:'4px 0',gap:'8px'}} onClick=${()=>{setDoses(d=>({...d,[k]:!d[k]}));if(!doses[k])app.toast('تمام! اتسجلت.')}} aria-pressed=${doses[k]}><span style=${{width:'24px',height:'24px',borderRadius:'50%',border:'2px solid var(--ok)',display:'grid',placeItems:'center',background:doses[k]?'var(--ok)':'transparent',color:'#fff'}}>${doses[k]?html`<${I} n="check" s=${14}/>`:null}</span><${I} n=${ic} s=${16}/><span class="sm">${l}</span><bdi class="num cap mut">${t}</bdi></button>`)}</div>
+  <button class="tile" onClick=${()=>go('rx')}><div class="row"><span class="ib"><${I} n="rx" s=${18}/></span><b>روشتاتي</b></div><div class="disp" style=${{fontSize:'2em'}}>2</div><div class="sm mut">روشتتين شغّالين</div><${Badge} st=${rxSt}/></button>
+  <button class="tile" onClick=${()=>go('ai')} style=${{alignItems:'center'}}><${Orb} state="idle" size=${64}/><b>اسأل المساعد</b><span class="cap mut">بيوجّهك للتخصص الصح</span></button>
+  <button class="tile" onClick=${()=>go('acct','bg')}><div class="row"><span class="ib"><${I} n="eye" s=${18}/></span><b>مين شايف ملفك</b></div><div class="sm">دكتور واحد</div><div class="sev okb" style=${{padding:'6px 8px',fontSize:'12px'}}><span>دخول طوارئ امبارح — شوف التفاصيل</span></div></button>
+ </div>
+ <button class="tile" style=${{flexDirection:'row',alignItems:'center'}} onClick=${()=>go('hist')}><span class="ib" style=${{background:'var(--wsurf)',color:'var(--won)'}}><${I} n="tri" s=${18}/></span><span class="sp">معلوماتك المهمة: فصيلة الدم محتاجة تأكيد من دكتورك</span><${I} n="chev" s=${18}/></button></div>`}
+
+function PHistory(){const [f,setF]=useState('all');const items=[['12 نوفمبر','د. سارة فتحي','صدرية','J45.9 ربو','v'],['02 نوفمبر','🔒 زيارة مخفية','','','h'],['18 أكتوبر','د. كريم عادل','باطنة','I10 ضغط','v']];
+ return html`<div class="col"><h1 class="h1">ملفي الطبي</h1><div class="row wrap" role="tablist">${[['all','الكل'],['v','الزيارات'],['d','التشخيصات'],['m','الأدوية']].map(([k,l])=>html`<button key=${k} class="chip" role="tab" aria-selected=${f===k} style=${{borderColor:f===k?'var(--primary)':'var(--border)',background:f===k?'var(--psub)':'transparent',color:f===k?'var(--ponsub)':'var(--fg)',padding:'6px 14px'}} onClick=${()=>setF(k)}>${l}</button>`)}</div>
+ <div class="cap mut" style=${{marginTop:'6px'}}>نوفمبر 2026</div>
+ ${items.map(([d,dr,sp,dx,t],i)=>html`<div key=${i} class="card row" style=${{alignItems:'flex-start'}}><span style=${{width:'10px',height:'10px',borderRadius:'50%',background:t==='h'?'var(--mfg)':'var(--primary)',marginTop:'7px'}}></span><div class="sp col" style=${{gap:'2px'}}><b>${d} · ${dr}</b>${sp?html`<span class="sm mut">${sp}</span>`:html`<span class="sm mut">مخفية — انت والدكتور بتاعها بس</span>`}${dx?html`<span class="chip" style=${{color:'var(--primary)',width:'fit-content'}}>${dx}</span>`:null}</div>${t==='v'?html`<${I} n="chev" s=${18}/>`:null}</div>`)}
+ <button class="btn gho">اعرض أقدم</button></div>`}
+
+function PRxList({st,open}){const app=useApp();return html`<div class="col"><h1 class="h1">روشتاتي</h1><div class="row" role="tablist"><button class="chip" style=${{background:'var(--psub)',color:'var(--ponsub)',borderColor:'var(--primary)',padding:'6px 14px'}}>شغّالة</button><button class="chip" style=${{borderColor:'var(--border)',padding:'6px 14px'}}>قديمة</button></div>
+ <button class="tile" onClick=${open}><div class="row"><span class="mono sm">RX-2026-000123</span><span class="sp"></span><${Badge} st=${st}/></div><b>د. كريم عادل · باطنة</b><div class="row sm mut"><span>3 أدوية</span><span>·</span><span>فاضل 6 أيام</span></div></button>
+ <button class="tile" onClick=${()=>app.toast('الروشتة دي نموذج بس في العرض')}><div class="row"><span class="mono sm">RX-2026-000101</span><span class="sp"></span><${Badge} st="partially_dispensed"/></div><b>د. سارة فتحي · صدرية</b><div class="sm mut">فاضل دوا واحد — تقدر تصرفه من أي صيدلية لحد 24 ديسمبر</div></button></div>`}
+
+function Med({form,name,dose,chips,rem,status}){return html`<div class="card col" style=${{gap:'6px'}}><div class="row"><span class="ib" style=${{width:'44px',height:'44px',borderRadius:'14px',background:'linear-gradient(145deg,var(--psub),var(--card))'}}><${I} n=${form} s=${22}/></span><div class="sp"><bdi class="num" style=${{fontWeight:700}}>${name}</bdi><div class="sm">${dose}</div></div>${status?html`<${Badge} st=${status}/>`:null}</div>
+ ${chips&&html`<div class="row wrap" style=${{gap:'6px'}}>${chips.map(([ic,l])=>html`<span key=${l} class="chip" style=${{color:'var(--fg)',borderColor:'var(--border)'}}><${I} n=${ic} s=${14}/>${l}</span>`)}</div>`}<div class="sm mut">${rem}</div></div>`}
+function RxDetail({st,onBack,onShow}){const app=useApp();const active=st==='pending'||st==='partially_dispensed';
+ return html`<div class="col"><div class="row"><button class="btn gho" onClick=${onBack} aria-label="رجوع"><${I} n="chev" s=${20} mirror=${true}/>رجوع</button><span class="sp"></span><span class="mono sm">RX-2026-000123</span></div>
+ <div class="card row"><${Seal} state="authentic" size=${76} stamp=${true}/><div class="col" style=${{gap:'4px'}}><b>موقّعة إلكترونياً من د. كريم عادل</b><${Badge} st=${st}/><span class="sm mut">فاضل 6 أيام</span></div></div>
+ <${Med} form="pill" name="Panadol 500 mg tab" dose="قرص واحد — 3 مرات في اليوم (كل 8 ساعات)" chips=${[['sunrise','الصبح'],['sun','الضهر'],['moon','بالليل'],['check','بعد الأكل']]} rem="فاضل 20 قرص" status=${st==='dispensed'?'dispensed':null}/>
+ <${Med} form="pill" name="Aspocid 75 mg tab" dose="قرص واحد — مرة في اليوم" chips=${null} rem="اتصرف 20 من 30 (صيدلية النور) — فاضل 10" status=${st==='dispensed'?'dispensed':'partially_dispensed'}/>
+ <div class="card col" style=${{gap:'6px'}}><div class="sm">مواعيد التذكير مش متحددة للدوا ده.</div><button class="btn sec" onClick=${()=>app.toast('هتحدد المواعيد بنفسك — مش هنخترعها')}>حدد مواعيد التذكير</button></div>
+ ${active?html`<div class="sev mn" role="status"><span>ⓘ</span><span class="sm">الباقي تقدر تصرفه من أي صيدلية لحد 24 ديسمبر.</span></div>
+ <button class="btn pri big full" onClick=${async()=>{if(app.offline){app.toast('مفيش نت — قول للصيدلي رقم الروشتة والكود K7Q-2MX');return}app.setSheet({type:'stepup',onOk:onShow})}}><${I} n="face"/> ورّي الكود في الصيدلية</button>`:null}</div>`}
+
+function StepUp({onOk,close}){const [s,setS]=useState(0);useEffect(()=>{const t1=setTimeout(()=>setS(1),900);const t2=setTimeout(()=>{close();onOk()},1500);return()=>{clearTimeout(t1);clearTimeout(t2)}},[]);
+ return html`<div class="scrim center" style=${{zIndex:80}}><div class="dlg glass" style=${{width:'250px',textAlign:'center',borderRadius:'22px'}} role="dialog" aria-label="أكّد إنه انت"><div style=${{fontSize:'44px',color:s?'var(--ok)':'var(--primary)'}}><${I} n=${s?'check':'face'} s=${48}/></div><b>Face ID</b><div class="sm mut">${s?'تمام':'أكّد إنه انت — عشان نعملك كود الصيدلية'}</div></div></div>`}
+
+function PickupQR({cmd,onBack,onDispensed}){const app=useApp();const [fast,setFast]=useState(1);const [left,setLeft]=useCountdown(600,true,fast);
+ useCmd(cmd,'qr',n=>{if(n==='qrexpire')setLeft(4)});
+ const expired=left<=0;
+ return html`<div class="col" style=${{alignItems:'center',textAlign:'center',gap:'12px'}}><div class="row" style=${{width:'100%'}}><button class="btn gho" onClick=${onBack}><${I} n="x"/>اقفل</button><span class="sp"></span><b>كود الصيدلية</b></div>
+ <div class="bodylg">ورّي الكود ده للصيدلي</div>
+ <div style=${{position:'relative',padding:'14px',background:'#fff',borderRadius:'16px',boxShadow:'var(--e3)'}}><${FakeQR} seed=${3}/>${expired?html`<div style=${{position:'absolute',inset:0,backdropFilter:'blur(10px)',background:'rgba(255,255,255,.55)',borderRadius:'16px',display:'grid',placeItems:'center'}}><div class="col" style=${{alignItems:'center',color:'#111'}}><b>الكود خلص</b><button class="btn pri" onClick=${()=>app.setSheet({type:'stepup',onOk:()=>setLeft(600)})}>اعمل كود جديد</button></div></div>`:null}</div>
+ <${Ring} left=${left} total=${600} size=${76}/><span class="cap mut">QR توضيحي — مش كود حقيقي</span>
+ <div class="mono">RX-2026-000123</div><div class="sm">مش معاك موبايل؟ قول للصيدلي الكود ده: <b class="mono" style=${{fontSize:'20px'}}>K7Q-2MX</b></div>
+ <div class="row wrap" style=${{justifyContent:'center'}}><button class="btn sec" onClick=${()=>setFast(f=>f===1?30:1)}>${fast===1?'سرّع الوقت ×30 (للعرض)':'رجّع السرعة'}</button><button class="btn sec" onClick=${()=>{app.toast('الصيدلية صرفت الروشتة ✓');onDispensed()}}>محاكاة: الصيدلية صرفت</button></div>
+ <div class="cap mut">مش مسموح بسكرين شوت للكود ده عشان أمانك.</div></div>`}
+
+function Assistant({cmd}){const app=useApp();const [msgs,setMsgs]=useState([]);const [txt,setTxt]=useState('');const [orb,setOrb]=useState('idle');const [busy,setBusy]=useState(false);const [take,setTake]=useState(null);const [down,setDown]=useState(false);const [dir,setDir]=useState(false);const endRef=useRef();
+ useCmd(cmd,'assistant',n=>{if(n==='redflag'){setDown(false);send('عندي ألم جامد في الصدر وعرق')}if(n==='aidown'){setDown(true);setOrb('unavailable')}});
+ useEffect(()=>{endRef.current&&endRef.current.scrollIntoView({block:'end'})},[msgs,busy]);
+ async function send(t){t=(t||txt).trim();if(!t||busy)return;setTxt('');setMsgs(m=>[...m,{u:1,t}]);setBusy(true);setOrb('thinking');await sleep(1100);setBusy(false);
+  const low=t.toLowerCase();if(CRISIS.some(w=>low.includes(w))){setTake('crisis');setOrb('idle');return}
+  if(RED.some(w=>low.includes(w))){setOrb('emergency');setTake('em');return}
+  if(down){setOrb('unavailable');setMsgs(m=>[...m,{down:1}]);return}
+  if(t.length<14){setOrb('guidance');setMsgs(m=>[...m,{clar:1}]);return}
+  setOrb('guidance');setMsgs(m=>[...m,{g:1,tri:'soon',sp:'مخ وأعصاب'}])}
+ if(take==='em')return html`<${Takeover} onClose=${()=>{setTake(null);setOrb('idle')}}/>`;
+ if(take==='crisis')return html`<${Crisis} onClose=${()=>setTake(null)}/>`;
+ return html`<div class="col" style=${{gap:'10px',minHeight:'100%'}}>
+ <div class="sev aib" role="note" style=${{fontSize:'13px'}}><span><${I} n="info" s=${18}/></span><span>المساعد بيوجّهك للتخصص المناسب، ومش بديل عن الدكتور ومش بيشخّص. في الطوارئ اتصل بالإسعاف 123.</span></div>
+ <div class="col" style=${{alignItems:'center',gap:'4px'}}><${Orb} state=${orb} size=${msgs.length?84:130}/><div class="sm" role="status" aria-live="polite" style=${{color:'var(--ai)',fontWeight:600}}>${ORB[orb].l}</div></div>
+ ${!msgs.length?html`<div class="card bodylg" style=${{borderInlineStart:'3px solid var(--ai)'}}>أهلاً يا منى. احكيلي حاسة بإيه، وأنا أساعدك تعرفي تروحي لمين.</div>
+ <div class="row wrap" style=${{gap:'6px'}}>${['صداع من 3 أيام وبيزيد الصبح','عندي ألم جامد في الصدر وعرق','تعبانة'].map(s=>html`<button key=${s} class="chip" style=${{color:'var(--ai)',padding:'6px 12px'}} onClick=${()=>send(s)}>${s}</button>`)}</div>`:null}
+ ${msgs.map((m,i)=>m.u?html`<div key=${i} style=${{alignSelf:'flex-end',maxWidth:'80%',background:'var(--primary)',color:'var(--onp)',borderRadius:'18px 18px 4px 18px',padding:'9px 14px'}}>${m.t}</div>`:
+  m.down?html`<div key=${i} class="card col" style=${{gap:'8px'}}><b>المساعد مش متاح دلوقتي.</b><span class="sm">لو تعبان جداً اتصل بالإسعاف 123 أو روح أقرب طوارئ.</span><button class="btn sec" onClick=${()=>setDir(true)}>اختار التخصص بنفسك</button></div>`:
+  m.clar?html`<div key=${i} class="card col" style=${{gap:'8px',borderInlineStart:'3px solid var(--ai)'}}><span>محتاج أفهم أكتر شوية: من إمتى؟</span><div class="row wrap" style=${{gap:'6px'}}>${['من النهارده','من كام يوم','أكتر من أسبوع'].map(s=>html`<button key=${s} class="chip" style=${{color:'var(--ai)',padding:'6px 12px'}} onClick=${()=>send('تعبانة '+s+' وعندي صداع وسخونية خفيفة')}>${s}</button>`)}</div></div>`:
+  html`<div key=${i} class="card col" style=${{gap:'8px',borderInlineStart:'3px solid var(--ai)'}}><span class="badge b-pending" style=${{width:'fit-content'}}>احجز مع دكتور في أقرب وقت (خلال كام يوم)</span><span class="bodylg">الصداع اللي بيزيد الصبح من كام يوم محتاج كشف، بس مش طوارئ دلوقتي.</span>
+   <details><summary class="sm" style=${{fontWeight:600}}>تقدر تعمل إيه في البيت</summary><ul class="sm"><li>اشرب مية كفاية ونام كويس</li><li>قلّل الشاشات قبل النوم</li></ul></details>
+   <details open><summary class="sm" style=${{fontWeight:600,color:'var(--danger)'}}>روح الطوارئ فوراً لو حصل أي حاجة من دول:</summary><ul class="sm"><li>صداع مفاجئ وجامد جداً</li><li>تنميل أو ضعف في ناحية من الجسم</li><li>لخبطة في الكلام أو الرؤية</li></ul></details>
+   <span class="chip" style=${{color:'var(--ai)',width:'fit-content'}}><${I} n="spark" s=${14}/>التخصص المناسب: مخ وأعصاب</span><span class="cap mut">ليه؟ الصداع مستمر وبيتغير مع الوقت.</span></div>`)}
+ ${busy?html`<div class="typing" aria-label="بيكتب"><span></span><span></span><span></span></div>`:null}<div ref=${endRef}></div>
+ <div class="sp"></div>
+ <form class="row glass" style=${{borderRadius:'28px',padding:'6px',position:'sticky',bottom:'0'}} onSubmit=${e=>{e.preventDefault();send()}}><input class="inp sp" style=${{border:0,background:'transparent'}} value=${txt} placeholder="اكتب الأعراض… (من غير أسماء أو أرقام قومية)" aria-label="الأعراض" maxLength="2000" onInput=${e=>{setTxt(e.target.value);if(!busy&&!down)setOrb(e.target.value?'listening':'idle')}}/><button class="btn pri" style=${{borderRadius:'50%',width:'44px',padding:0}} disabled=${busy||!txt.trim()} aria-label="ابعت"><${I} n="send" s=${18} mirror=${true}/></button></form>
+ ${dir?html`<div class="scrim" onClick=${e=>{if(e.target===e.currentTarget)setDir(false)}}><div class="sheet" role="dialog" aria-label="اختار التخصص"><div class="grab"></div><b class="h3">اختار التخصص بنفسك</b><div class="sm mut">مش متأكد؟ ابدأ بـ «باطنة عامة» وهو هيوجّهك.</div>${['باطنة عامة','مخ وأعصاب','قلب وأوعية دموية','جلدية','أطفال','عظام','نسا وتوليد'].map(s=>html`<button key=${s} class="navitem" onClick=${()=>{setDir(false);app.toast('هتلاقي دكاترة '+s+' (قريباً)')}}>${s}</button>`)}</div></div>`:null}
+ </div>`}
+
+function Takeover({onClose}){useForce('emergency');const [l,setL]=useState(5);useEffect(()=>{const id=setInterval(()=>setL(x=>Math.max(0,x-1)),1000);return()=>clearInterval(id)},[]);
+ return html`<div data-theme="emergency" class="themed" style=${{position:'absolute',inset:0,zIndex:90,background:'#7F1D1D',color:'#fff',padding:'64px 22px 40px',display:'flex',flexDirection:'column',gap:'14px'}} role="alertdialog" aria-label="طوارئ">
+ <div class="row"><span class="sp"></span><button class="btn" style=${{color:'#fff',border:'1.5px solid #fff8',minHeight:'40px'}} disabled=${l>0} onClick=${onClose} aria-label=${l?`زرار القفل هيشتغل بعد ${l} ثانية`:'أنا كويس، ارجع للمحادثة'}>${l?`تقدر تقفل بعد ${l} ثانية`:'أنا كويس، ارجع للمحادثة'}</button></div>
+ <div style=${{textAlign:'center'}}><${I} n="ambul" s=${56}/></div><div class="em-h" style=${{textAlign:'center'}}>الأعراض دي محتاجة طوارئ فوراً</div><div class="em-b" style=${{textAlign:'center'}}>متستناش. اتصل بالإسعاف دلوقتي، أو خلّي حد ياخدك لأقرب طوارئ.</div>
+ <a class="em-btn" href="tel:123" style=${{background:'#30D158',color:'#000',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',textDecoration:'none',minHeight:'72px'}}><${I} n="phone" s=${28}/>اتصل بالإسعاف 123</a>
+ <button class="em-btn" style=${{background:'transparent',color:'#fff',border:'2px solid #fff'}}><span class="row" style=${{justifyContent:'center'}}><${I} n="map"/>أقرب طوارئ ليك</span></button>
+ <button class="em-btn" style=${{background:'transparent',color:'#fff',border:'2px solid #fff'}}>ابعت لأهلك إنك رايح الطوارئ</button>
+ <div class="em-b" style=${{fontSize:'1.05em'}}>لحد ما الإسعاف يوصل: اقعد أو نام في وضع مريح، وماتسوقش بنفسك.</div></div>`}
+function Crisis({onClose}){return html`<div style=${{position:'absolute',inset:0,zIndex:90,background:'linear-gradient(170deg,#DBEAFE,#CCFBF1)',color:'#0F172A',padding:'72px 24px 40px',display:'flex',flexDirection:'column',gap:'14px'}} role="dialog" aria-label="إحنا معاك">
+ <div style=${{display:'grid',placeItems:'center'}}><div style=${{width:'110px',height:'110px',borderRadius:'50%',background:'radial-gradient(circle at 35% 30%,#fff,#93C5FD 60%,#5EEAD4)'}}></div></div><h2 class="h1" style=${{textAlign:'center'}}>إحنا معاك</h2><p class="bodylg">اللي انتي حاسة بيه مهم، ومش لازم تعدّي بيه لوحدك. كلّمي حد بتثقي فيه دلوقتي، أو كلّمي خط الدعم النفسي.</p>
+ <button class="btn pri big full">كلّمي خط الدعم النفسي (الرقم من قاعدة البيانات)</button><a class="btn sec big full" href="tel:123">لو في خطر دلوقتي، اتصلي بالإسعاف 123</a><button class="btn sec full">ابعتي لحد بتثقي فيه</button><button class="btn gho" onClick=${onClose}>عايزة أكمّل كلام</button></div>`}
+
+function EmergencyCard({onClose}){const app=useApp();const [sun,setSun]=useState(false);useForce(sun?'sunlight':'emergency');useEffect(()=>{app.report('M-PAT-11 Emergency card (Tier E)')},[]);
+ return html`<div data-theme=${sun?'sunlight':'emergency'} class="themed" style=${{position:'absolute',inset:0,padding:'58px 18px 30px',display:'flex',flexDirection:'column',gap:'12px',overflowY:'auto'}}>
+ <div class="row"><button class="btn" style=${{border:'2px solid var(--fg)',minHeight:'48px'}} onClick=${onClose} aria-label="اقفل"><${I} n="x"/></button><span class="sp em-l" style=${{textAlign:'center'}}>كارت الطوارئ</span><button class="btn" style=${{border:'2px solid var(--fg)',minHeight:'48px'}} onClick=${()=>setSun(s=>!s)} aria-pressed=${sun} aria-label="وضع الشمس"><${I} n="sun"/></button></div>
+ ${app.offline?html`<div style=${{background:'#FF9F0A',color:'#000',fontWeight:800,padding:'8px 12px',borderRadius:'10px'}}>أوفلاين — آخر تحديث من ساعتين</div>`:null}
+ <div class="em-l">منى عادل · 36 · أنثى · <bdi class="mono">…9Q4D</bdi></div>
+ <div style=${{background:sun?'#fff':'#7F1D1D',color:sun?'#B00020':'#fff',border:sun?'4px solid #B00020':'0',borderRadius:'12px',padding:'12px 14px'}}><div class="em-l row"><${I} n="oct" s=${22}/>الحساسية</div><div class="em-h"><bdi>PENICILLINS</bdi> — حساسية مفرطة</div><div class="em-b"><bdi>Ibuprofen</bdi> — طفح خفيف</div></div>
+ <div class="row" style=${{borderBottom:'1px solid var(--border)',paddingBottom:'8px'}}><span class="em-l sp">فصيلة الدم</span><bdi class="em-d">O+</bdi></div><div class="em-b" style=${{color:sun?'#000':'#FFD60A'}}>⚠ من كلام المريض — اتأكد قبل نقل الدم</div>
+ <div class="row" style=${{borderBottom:'1px solid var(--border)',paddingBottom:'8px'}}><span class="em-l sp">أمراض مزمنة</span><span class="em-b">ربو (2015)</span></div>
+ <div class="col" style=${{gap:'2px'}}><span class="em-l">أدوية حالية</span><bdi class="em-b">Warfarin 5 mg — daily</bdi><bdi class="em-b">Salbutamol inhaler</bdi></div>
+ <div style=${{background:'#fff',borderRadius:'12px',padding:'12px',display:'flex',gap:'12px',alignItems:'center',color:'#000'}}><${FakeQR} seed=${11} size=${150}/><b>ورّي الكود ده للمسعف</b></div>
+ <div class="cap" style=${{fontSize:'14px'}}>اتعمل 20 نوفمبر · صالح لحد 20 ديسمبر</div></div>`}
+
+function Enrol({onBack}){const app=useApp();const [ph,setPh]=useState('consent');const [pose,setPose]=useState({yaw:0,pitch:0});const [sweep,setSweep]=useState(null);const [hint,setHint]=useState('');const [steps,setSteps]=useState(0);
+ useEffect(()=>{if(ph==='consent'||ph==='success')return;let alive=true,raf,t0=performance.now();const seq=[['searching',900,'حط وشك جوه الدايرة'],['aligning',900,'قرّب شوية'],['aligned',700,'تمام كده — متتحركش'],['challenge',1500,'رمّش بعينك مرة'],['challenge2',1700,'لف وشك ناحية الشمال شوية'],['capturing',1300,'ثانية واحدة…'],['uploading',900,'بنتأكد…']];
+  let i=0,start=t0;setPh(seq[0][0]);setHint(seq[0][2]);
+  const loop=now=>{if(!alive)return;const s=seq[i];const el=now-start;const tt=now/1000;let yaw=Math.sin(tt*1.3)*.12,pitch=Math.sin(tt*.9)*.06;
+   if(s[0]==='searching')yaw=Math.sin(tt*2)*.35;if(s[0]==='challenge2')yaw=-Math.min(.5,el/700*.5);setPose({yaw,pitch});setSweep(s[0]==='capturing'||s[0]==='uploading'?((el/1100)%1):null);
+   if(el>s[1]){i++;start=now;if(s[0]==='challenge'||s[0]==='challenge2'){setSteps(x=>x+1);navigator.vibrate&&navigator.vibrate(10)}if(i>=seq.length){setPh('success');setHint('تمام! وشك اتسجل بأمان.');app.toast('بصمة وشك اتسجلت ✓');return}setPh(seq[i][0]);setHint(seq[i][2])}
+   raf=requestAnimationFrame(loop)};raf=requestAnimationFrame(loop);return()=>{alive=false;cancelAnimationFrame(raf)}},[ph==='consent'||ph==='success'?ph:'run']);
+ if(ph==='consent')return html`<div class="col"><button class="btn gho" style=${{alignSelf:'flex-start'}} onClick=${onBack}><${I} n="chev" mirror=${true}/>رجوع</button><h1 class="h1">استخدمي بصمة وشك في الطوارئ</h1><p class="bodylg">لو حصلك حاجة ومقدرتيش تتكلمي، المسعف يقدر يعرفك من وشك ويشوف فصيلة دمك وحساسيتك فوراً.</p>
+  <div class="sev okb"><span><${I} n="shieldok"/></span><span>مش بنحفظ صورتك أبداً. بنحفظ نموذج رياضي محمي لوشك، وتقدري تمسحيه في أي وقت.</span></div><div class="sev mn"><span><${I} n="info"/></span><span>المسعفين المرخّصين بس يقدروا يستخدموه، وكل استخدام بيتسجل وبيوصلك إشعار.</span></div>
+  <button class="btn pri big full" onClick=${()=>setPh('run')}>موافقة، سجّل وشي</button><button class="btn gho" onClick=${onBack}>بعدين</button></div>`;
+ const vis=ph==='challenge2'?'challenge':ph;
+ return html`<div class="col" style=${{alignItems:'center'}}><div class="row" style=${{width:'100%'}}><button class="btn gho" onClick=${onBack}><${I} n="x"/></button><span class="sp"></span><b>تسجيل بصمة الوش</b></div>
+ <div style=${{position:'relative',borderRadius:'24px',overflow:'hidden'}}><${FaceMesh} phase=${vis} pose=${pose} sweep=${sweep} w=${360} h=${470}/>
+  <div class="row" style=${{position:'absolute',top:'12px',insetInline:0,justifyContent:'center',gap:'6px'}}>${[0,1].map(k=>html`<span key=${k} style=${{width:'46px',height:'6px',borderRadius:'3px',background:steps>k?'#22C55E':'rgba(255,255,255,.35)',transition:'background .2s'}}></span>`)}</div>
+  <div role="status" aria-live="polite" style=${{position:'absolute',bottom:'18px',insetInline:0,display:'flex',justifyContent:'center'}}><span style=${{background:'rgba(0,0,0,.72)',color:'#fff',borderRadius:'999px',padding:'8px 16px',fontWeight:600}}>${ph==='challenge2'?'← ':''}${hint}</span></div></div>
+ ${ph==='success'?html`<div class="sev okb" style=${{width:'100%'}}><span><${I} n="check"/></span><b>تمام! وشك اتسجل بأمان.</b></div><button class="btn pri full" onClick=${onBack}>تمام</button>`:html`<div class="cap mut">الوش اللي ظاهر محاكاة — الكاميرا مش متاحة في العرض</div>`}</div>`}
+
+function BreakGlass({onBack}){return html`<div class="col"><button class="btn gho" style=${{alignSelf:'flex-start'}} onClick=${onBack}><${I} n="chev" mirror=${true}/>رجوع</button><div class="row"><span class="ib" style=${{width:'48px',height:'48px'}}><${I} n="shield" s=${26}/></span><h1 class="h2">دخول طوارئ على ملفك</h1></div>
+ <div class="card col"><span class="bodylg">مسعف من <b>إسعاف الإسماعيلية</b> شاف معلومات الطوارئ بس (فصيلة الدم، الحساسية، الأمراض المزمنة، الأدوية) يوم 23 نوفمبر الساعة <bdi class="num">11:42 PM</bdi>.</span><span class="sm">بطريقة: بصمة الوش</span><span class="sm mut">الدخول ده بيتراجع من إدارة النظام.</span></div>
+ <button class="btn sec">مكنتيش في طوارئ؟ بلّغينا</button></div>`}
+function Contacts({onBack}){const app=useApp();const [list,setList]=useState([{n:'عادل حسن',r:'الأب',p:'+20 111 222 3334',s:true},{n:'سارة عادل',r:'أخت',p:'+20 100 555 7788',s:false}]);
+ const mv=(i,d)=>{const j=i+d;if(j<0||j>=list.length)return;const a=[...list];[a[i],a[j]]=[a[j],a[i]];setList(a)};
+ return html`<div class="col"><button class="btn gho" style=${{alignSelf:'flex-start'}} onClick=${onBack}><${I} n="chev" mirror=${true}/>رجوع</button><h1 class="h1">جهات الطوارئ</h1><p class="sm mut" style=${{margin:0}}>الناس اللي المسعف يكلّمهم لو حصلك حاجة. رتّبيهم بالأهمية.</p>
+ ${list.map((c,i)=>html`<div key=${c.n} class="card row"><span class="mut"><${I} n="grip"/></span><span class="num chip" style=${{color:'var(--primary)'}}>${i+1}</span><div class="sp"><b>${c.n} · ${c.r}</b><div class="sm"><bdi class="num">${c.p}</bdi> · ${c.s?'المسعف يقدر يشوفه':'مخفي عن المسعف'}</div></div><div class="col" style=${{gap:'2px'}}><button class="btn gho" style=${{minHeight:'30px',padding:'0 8px'}} onClick=${()=>mv(i,-1)} aria-label="انقله لفوق">▲</button><button class="btn gho" style=${{minHeight:'30px',padding:'0 8px'}} onClick=${()=>mv(i,1)} aria-label="انقله لتحت">▼</button></div></div>`)}
+ <button class="btn pri full" onClick=${()=>app.toast('اتحفظ — وكارت الطوارئ اتحدّث.')}><${I} n="plus"/>ضيفي شخص</button><div class="cap mut">2 من 5</div></div>`}
+function PAccount({go}){const app=useApp();return html`<div class="col"><h1 class="h1">حسابي</h1>${[['contacts','جهات الطوارئ','users'],['enrol','بصمة الوش','face'],['ecard','كارت الطوارئ','siren'],['bg','سجل الاطلاع ودخول الطوارئ','eye']].map(([k,l,ic])=>html`<button key=${k} class="tile" style=${{flexDirection:'row',alignItems:'center'}} onClick=${()=>k==='ecard'?app.fire('card'):go(k)}><span class="ib"><${I} n=${ic} s=${18}/></span><span class="sp">${l}</span><${I} n="chev" s=${18}/></button>`)}
+ <div class="card col"><b>حجم الخط</b><div class="seg">${[[1,'عادي'],[1.15,'كبير'],[1.3,'كبير جداً']].map(([v,l])=>html`<button key=${v} class="btn sec" aria-pressed=${app.fs===v} style=${app.fs===v?{borderColor:'var(--primary)',background:'var(--psub)'}:null} onClick=${()=>app.setFs(v)}>${l}</button>`)}</div></div></div>`}
+
+/* ---------------- DOCTOR (web) ---------------- */
+const CATALOG=[{id:'aug',name:'Augmentin 875/125 mg tab',ing:'amoxicillin',cls:'penicillin',dose:'1 tab',freq:'twice daily',d:7,q:14},{id:'asp',name:'Aspocid 75 mg tab',ing:'aspirin',cls:'nsaid',dose:'1 tab',freq:'once daily',d:30,q:30},{id:'bru',name:'Brufen 400 mg tab',ing:'ibuprofen',cls:'nsaid',dose:'1 tab',freq:'three times daily',d:5,q:15},{id:'cef',name:'Ceporex 500 mg cap',ing:'cefalexin',cls:'cephalosporin',dose:'1 cap',freq:'four times daily',d:7,q:28},{id:'par',name:'Panadol 500 mg tab',ing:'paracetamol',cls:'analgesic',dose:'1 tab',freq:'as needed',d:5,q:20}];
+function alertsFor(items){const A=[];const has=c=>items.some(i=>i.cls===c);const ing=x=>items.find(i=>i.ing===x);
+ const aug=items.find(i=>i.cls==='penicillin');if(aug)A.push({key:'DA:amoxicillin:penicillins',sev:'contraindicated',drug:aug.id,title:'حساسية مفرطة من البنسلين',body:html`<span><bdi>${aug.name}</bdi> فيه <bdi>Amoxicillin</bdi> من نفس العيلة. المريضة عندها حساسية مفرطة (Anaphylaxis) متأكد منها الدكتور.</span>`,src:'DDInter 2.0 + كتالوج الحساسية'});
+ const asp=ing('aspirin');if(asp)A.push({key:'DD:warfarin:aspirin',sev:'major',drug:asp.id,title:html`تعارض بين <bdi>Warfarin</bdi> و<bdi>Aspirin</bdi>`,body:html`<span>التأثير: زيادة خطر النزيف. المقترح: تجنّب، أو متابعة INR عن قرب.</span>`,src:'DDInter 2.0',prev:'اتراجع قبل كده: د. سارة — 1 سبتمبر'});
+ const bru=ing('ibuprofen');if(bru){A.push({key:'DD:warfarin:ibuprofen',sev:'major',drug:bru.id,title:html`تعارض بين <bdi>Warfarin</bdi> و<bdi>Ibuprofen</bdi>`,body:html`<span>التأثير: زيادة خطر النزيف ونزيف المعدة.</span>`,src:'DDInter 2.0'});A.push({key:'DA:ibuprofen:ibuprofen',sev:'moderate',drug:bru.id,title:'حساسية مسجّلة من الإيبوبروفين (من كلام المريضة)',body:html`<span>طفح خفيف — راجعها مع المريضة.</span>`,src:'ملف المريضة'})}
+ if(items.filter(i=>i.cls==='nsaid').length>1)A.push({key:'DUP:nsaid',sev:'moderate',drug:'asp',title:'تكرار علاج من نفس المجموعة (NSAIDs)',body:html`<span>دوايين من نفس المجموعة في نفس الروشتة.</span>`,src:'قواعد التكرار'});
+ const cef=ing('cefalexin');if(cef)A.push({key:'DA:cefalexin:penicillins',sev:'moderate',drug:cef.id,title:'احتمال حساسية متقاطعة مع البنسلين',body:html`<span>السيفالوسبورين ممكن يعمل حساسية متقاطعة بنسبة قليلة.</span>`,src:'كتالوج الحساسية المتقاطعة'});
+ const par=ing('paracetamol');if(par)A.push({key:'MN:paracetamol',sev:'minor',drug:par.id,title:'الحد الأقصى 4 جم في اليوم',body:null,src:'كتالوج الأدوية'});
+ const o={contraindicated:0,major:1,moderate:2,minor:3};return A.sort((a,b)=>o[a.sev]-o[b.sev])}
+
+function WebShell({role,nav,cur,setCur,children,title}){const app=useApp();return html`<div class="canvasglow" style=${{position:'absolute',inset:0,display:'grid',gridTemplateColumns:'264px 1fr',gridTemplateRows:'64px 1fr'}}>
+ <aside style=${{gridRow:'1 / 3',gridColumn:'1',background:'var(--card)',borderInlineEnd:'1px solid var(--border)',padding:'16px 12px',display:'flex',flexDirection:'column',gap:'4px'}}><div class="row" style=${{padding:'4px 8px 14px'}}><span style=${{color:'var(--primary)'}}><${I} n="shieldok" s=${26}/></span><b class="h3">سمارت هيلث</b></div>
+  ${nav.map(([k,l,ic])=>html`<button key=${k} class="navitem" aria-current=${cur===k?'page':null} onClick=${()=>setCur(k)}><${I} n=${ic} s=${20}/>${l}</button>`)}<span class="sp"></span><button class="navitem"><${I} n="gear"/>الإعدادات</button><button class="navitem"><${I} n="lock"/>خروج</button></aside>
+ <header class="glass row" style=${{gridColumn:'2',padding:'0 24px',gap:'14px',borderTop:0,borderInline:0,position:'relative',zIndex:5}}><div class="row inp" style=${{width:'420px',gap:'8px'}}><${I} n="search" s=${18}/><span class="mut sm">${title}</span><span class="sp"></span><span class="kbd">Ctrl K</span></div><span class="sp"></span><button class="btn gho" aria-label="الإشعارات"><${I} n="bell"/></button><span class="chip" style=${{color:'var(--primary)'}}>${role}</span></header>
+ <main style=${{gridColumn:'2',overflowY:'auto',position:'relative'}}><${Ribbon} label="مفيش نت — الإجراءات اللي محتاجة نت متوقفة"/><div style=${{padding:'24px 32px 48px'}}>${children}</div></main></div>`}
+
+function Doctor({cmd}){const app=useApp();const [cur,setCur]=useState('dash');const [lock,setLock]=useState(false);const [tout,setTout]=useState(false);const [pre,setPre]=useState(null);const [preN,setPreN]=useState(0);
+ useCmd(cmd,'doctor',n=>{if(n!=='license')setLock(false);if(n==='allergy'){setCur('rx');setPre(['aug','asp']);setPreN(x=>x+1)}if(n==='timeout'){setTout(true)}if(n==='license'){setLock(true)}});
+ useEffect(()=>{app.report({dash:'W-DOC-01 Doctor dashboard',pt:'W-DOC-04 Patient profile',rx:'W-DOC-07 Rx builder',code:'W-DOC-03 Redeem'}[cur])},[cur]);
+ if(lock)return html`<div class="canvasglow" style=${{position:'absolute',inset:0,display:'grid',placeItems:'center'}}><div class="card col" style=${{width:'520px',textAlign:'center',alignItems:'center',padding:'32px'}}><span class="ib" style=${{width:'64px',height:'64px',background:'var(--dsurf)',color:'var(--danger)'}}><${I} n="lock" s=${32}/></span><h1 class="h2">الترخيص مش ساري</h1><p class="bodylg">ترخيصك موقوف مؤقتاً، فمش هتقدر تكتب روشتات دلوقتي. اللي كنت كاتبه قبل الإيقاف لسه ممكن يتصرف.</p><div class="row"><button class="btn pri">كلّم الإدارة</button><button class="btn sec" onClick=${()=>setLock(false)}>خروج (للعرض: رجوع)</button></div></div></div>`;
+ return html`<${WebShell} role="دكتور" title="دوّر برقم الملف الطبي أو الرقم القومي…" cur=${cur==='pt'?'pts':cur} setCur=${k=>setCur(k==='pts'?'dash':k)} nav=${[['dash','لوحة اليوم','home'],['pts','مرضايا','users'],['code','افتح ملف بكود','key'],['rx','روشتة جديدة','rx']]}>
+ ${cur==='dash'?html`<${DocDash} open=${()=>setCur('pt')}/>`:cur==='code'?html`<${Redeem} done=${()=>setCur('pt')}/>`:html`<${PatientHeader} tab=${cur} setTab=${setCur}/>${cur==='rx'?html`<${RxBuilder} pre=${pre} key=${'rx'+preN}/>`:html`<${PtSummary}/>`}`}
+ ${tout?html`<${TimeoutOverlay} done=${()=>setTout(false)}/>`:null}</${WebShell}>`}
+function DocDash({open}){return html`<div class="col" style=${{gap:'20px'}}><div class="row"><h1 class="h1 sp">صباح الخير يا د. كريم</h1><button class="btn pri"><${I} n="key"/>افتح ملف بكود <span class="kbd" style=${{color:'#fff',borderColor:'#fff6'}}>R</span></button></div>
+ <div style=${{display:'grid',gridTemplateColumns:'repeat(12,minmax(0,1fr))',gap:'20px'}}>
+ ${[['ملفات مفتوحة ليك','18','users'],['روشتات النهارده','7','rx'],['تجاوزات الأسبوع ده','1','tri'],['أذونات قربت تخلص','2','clock']].map(([l,v,ic])=>html`<div key=${l} class="tile" style=${{gridColumn:'span 3',minHeight:'132px'}}><span class="ib"><${I} n=${ic} s=${18}/></span><span class="sm mut">${l}</span><span class="disp">${v}</span></div>`)}
+ <div class="tile" style=${{gridColumn:'span 8'}}><b class="h3">آخر مرضى فتحتهم</b>${[['منى عادل','36 · أنثى','…9Q4D',html`<span class="chip ana"><${I} n="siren" s=${13}/>حساسية مفرطة: Penicillin</span>`],['يوسف كمال','61 · ذكر','…2LX7',html`<span class="chip" style=${{color:'var(--warn)'}}>Warfarin</span>`],['هنا محمود','28 · أنثى','…8QW1',html`<span class="chip" style=${{color:'var(--mfg)'}}>مفيش حساسية متسجلة</span>`]].map(([n,a,m,c],i)=>html`<button key=${n} class="navitem" style=${{height:'56px',borderTop:i?'1px solid var(--border)':'0',borderRadius:0}} onClick=${open}><b style=${{width:'110px'}}>${n}</b><span class="sm mut" style=${{width:'90px'}}>${a}</span><bdi class="mono sm" style=${{width:'70px'}}>${m}</bdi>${c}<span class="sp"></span><${I} n="chev" s=${18}/></button>`)}</div>
+ <div class="tile" style=${{gridColumn:'span 4'}}><b class="h3">أذونات قربت تخلص</b><div class="row sm"><span class="sp">أحمد سمير</span><span class="badge b-partial">يومين</span></div><div class="row sm"><span class="sp">هنا محمود</span><span class="badge b-partial">يوم</span></div><span class="cap mut">اطلب من المريض كود جديد لو محتاج تكمّل متابعة.</span></div></div></div>`}
+function Redeem({done}){const [c,setC]=useState('');const [err,setErr]=useState(false);return html`<div class="card" style=${{maxWidth:'560px',margin:'40px auto'}}><h1 class="h2">افتح ملف مريض بكود</h1><div class="field" style=${{marginTop:'14px'}}><label for="mrn">رقم الملف الطبي</label><input id="mrn" class="inp mono" dir="ltr" defaultValue="SH-7K2M9Q4D"/></div><div class="field"><label for="sc">كود المشاركة (6 أرقام)</label><input id="sc" class="inp mono" dir="ltr" inputMode="numeric" maxLength="6" value=${c} onInput=${e=>{setC(e.target.value.replace(/\D/g,''));setErr(false)}} style=${err?{borderColor:'var(--danger)'}:null} aria-invalid=${err}/>${err?html`<span class="sm" style=${{color:'var(--don)'}}>الكود أو رقم الملف مش مظبوط، أو الكود خلص. اطلب كود جديد من المريض.</span>`:html`<span class="cap mut">جرّب 482913 — أي كود تاني هيعرض حالة الخطأ</span>`}</div><div class="sev mn" style=${{marginBottom:'12px'}}><span>ⓘ</span><span class="sm">الإذن بيستمر 30 يوم (المريض اللي بيحدد)</span></div><button class="btn pri full" disabled=${c.length!==6} onClick=${()=>c==='482913'?done():setErr(true)}>افتح الملف</button></div>`}
+function PatientHeader({tab,setTab}){return html`<div class="card" style=${{position:'sticky',top:'-24px',zIndex:4,marginBottom:'20px',padding:'14px 18px'}}><div class="row wrap"><b class="h2">منى عادل</b><span class="mut">36 · أنثى</span><bdi class="mono sm">SH-7K2M9Q4D</bdi><span class="badge b-pending">الإذن لحد 24 ديسمبر</span><span class="sp"></span><button class="btn sec">قفل الزيارة</button></div>
+ <div class="row wrap" style=${{marginTop:'10px',gap:'8px'}} role="region" aria-label="معلومات المريض المهمة"><span class="chip ana" tabIndex="0"><${I} n="siren" s=${14}/>حساسية مفرطة: Penicillins</span><span class="chip self" title="انت اللي كاتبها — اتأكد قبل نقل الدم"><bdi class="num">O+</bdi> (من كلام المريضة ⚠)</span><span class="chip" style=${{color:'var(--fg)'}}>ربو</span><span class="chip" style=${{color:'var(--warn)'}}>أدوية حالية (2): <bdi>Warfarin</bdi>، <bdi>Salbutamol</bdi></span><span class="chip" style=${{color:'var(--info)'}}>ⓘ سجل واحد مقيّد</span></div>
+ <div class="row" style=${{marginTop:'10px',gap:'4px'}} role="tablist">${[['pt','الملخص'],['rx','روشتة جديدة']].map(([k,l])=>html`<button key=${k} role="tab" aria-selected=${tab===k} class="btn" style=${{minHeight:'36px',background:tab===k?'var(--psub)':'transparent',color:tab===k?'var(--ponsub)':'var(--fg)'}} onClick=${()=>setTab(k)}>${l}</button>`)}</div></div>`}
+function PtSummary(){return html`<div style=${{display:'grid',gridTemplateColumns:'repeat(12,minmax(0,1fr))',gap:'20px'}}><div class="tile" style=${{gridColumn:'span 6'}}><b class="h3">الحساسية والمعلومات المهمة</b><div class="row"><span class="chip ana">⛔ Penicillins — حساسية مفرطة</span><span class="cap mut">✓ متأكد منها دكتور</span></div><div class="row"><span class="chip" style=${{color:'var(--caut)'}}>Ibuprofen — طفح</span><span class="cap mut">من كلام المريضة</span><span class="sp"></span><button class="btn sec" style=${{minHeight:'32px'}}>أكّد / ارفض</button></div><div class="row"><span class="chip" style=${{color:'var(--caut)',borderStyle:'dashed'}}>«تراب» — مش متكوّدة</span><span class="sp"></span><button class="btn gho" style=${{minHeight:'32px'}}>كوّدها</button></div></div>
+ <div class="tile" style=${{gridColumn:'span 6'}}><b class="h3">روشتات شغّالة</b><div class="row"><bdi class="mono sm">RX-2026-000123</bdi><${Badge} st="pending"/></div><div class="row"><bdi class="mono sm">RX-2026-000101</bdi><${Badge} st="partially_dispensed"/></div></div>
+ <div class="tile" style=${{gridColumn:'span 6'}}><b class="h3">الأمراض المزمنة</b><span>ربو (من 2015) · ضغط</span></div><div class="tile" style=${{gridColumn:'span 6'}}><b class="h3">آخر الزيارات</b><span class="sm">12 نوفمبر · د. سارة · <bdi>J45.9</bdi></span></div></div>`}
+
+function RxBuilder({pre}){const app=useApp();const [items,setItems]=useState(()=>(pre||[]).map(id=>({...CATALOG.find(c=>c.id===id),uid:id+Math.random()})));const [checking,setChecking]=useState(false);const [shown,setShown]=useState(()=>alertsFor(items));const [ov,setOv]=useState({});const [dlg,setDlg]=useState(null);const [reauth,setReauth]=useState(null);const [issued,setIssued]=useState(false);const [pick,setPick]=useState('');const [sending,setSending]=useState(false);const [att,setAtt]=useState(false);
+ const engineDown=app.flags.engineDown;
+ useEffect(()=>{setChecking(true);const t=setTimeout(()=>{setShown(alertsFor(items));setChecking(false)},400);return()=>clearTimeout(t)},[items.map(i=>i.id).join()]);
+ const blocking=shown.filter(a=>(a.sev==='contraindicated'||a.sev==='major')&&!ov[a.key]);const needAtt=engineDown&&!att;
+ const reason=app.offline?'محتاج نت عشان تبعت الروشتة':checking?'بنراجع التعارضات…':!items.length?'ضيف دوا الأول':blocking.length?`فيه ${blocking.length===1?'تنبيه محتاج':blocking.length===2?'تنبيهين محتاجين':blocking.length+' تنبيهات محتاجة'} سبب موثّق قبل الإصدار`:needAtt?'أكّد إنك راجعت التعارضات بنفسك':'';
+ const issue=async()=>{setSending(true);await sleep(900);setSending(false);setIssued(true)};
+ if(issued)return html`<div class="card col" style=${{maxWidth:'620px',margin:'10px auto',alignItems:'center',textAlign:'center',padding:'28px'}}><${Seal} state="authentic" size=${110} stamp=${true}/><h1 class="h2">الروشتة اتبعتت</h1><div>رقم الروشتة: <bdi class="mono" style=${{fontSize:'20px'}}>RX-2026-000124</bdi></div><div style=${{border:'2px dashed var(--border)',borderRadius:'12px',padding:'12px 20px'}}><div class="sm mut">كود الورقة (بيظهر مرة واحدة بس)</div><b class="mono" style=${{fontSize:'28px'}}>Q4M-7XK</b></div><span class="sm mut">اطبعه للمريض لو معندوش موبايل.</span><div class="row"><button class="btn pri">اطبع للمريض</button><button class="btn sec" onClick=${()=>{setIssued(false);setItems([]);setOv({})}}>روشتة جديدة</button></div></div>`;
+ return html`<div style=${{display:'grid',gridTemplateColumns:'minmax(0,8fr) minmax(0,4fr)',gap:'20px',alignItems:'start',paddingBottom:'80px'}}>
+ <div class="col"><div class="card col">${!items.length?html`<div class="col" style=${{alignItems:'center',padding:'30px',textAlign:'center'}}><span class="ib" style=${{width:'56px',height:'56px'}}><${I} n="pill" s=${28}/></span><b>ضيف أول دوا</b><span class="sm mut">جرّب Augmentin عشان تشوف تنبيه «ممنوع»، أو Aspocid عشان تعارض مع Warfarin.</span></div>`:null}
+  ${items.map((it,ix)=>{const a=shown.filter(x=>x.drug===it.id);const top=a[0];const c=top?{contraindicated:'var(--danger)',major:'var(--warn)',moderate:'var(--caut)',minor:'var(--info)'}[top.sev]:'transparent';
+   return html`<div key=${it.uid} style=${{borderInlineStart:'3px solid '+c,paddingInlineStart:'12px',paddingBottom:'12px',borderBottom:'1px solid var(--border)'}}><div class="row"><span class="num mut">${ix+1}</span>${top?html`<span style=${{color:c}}><${I} n=${SEVM[top.sev][1]} s=${18}/></span>`:null}<bdi class="num" style=${{fontWeight:700}}>${it.name}</bdi><span class="sp"></span><button class="btn gho" aria-label="امسح الدوا" onClick=${()=>setItems(l=>l.filter(x=>x.uid!==it.uid))}><${I} n="trash" s=${18}/></button></div>
+   <div class="row wrap" style=${{gap:'8px',marginTop:'6px'}}>${[['الجرعة',it.dose],['الطريقة','oral'],['عدد المرات',it.freq],['المدة',it.d+' d'],['الكمية',it.q+' units']].map(([l,v])=>html`<div key=${l} class="col" style=${{gap:'2px'}}><span class="cap mut">${l}</span><span class="inp num" dir="ltr" style=${{height:'36px',display:'flex',alignItems:'center',minWidth:'92px',fontSize:'14px'}}>${v}</span></div>`)}</div></div>`})}
+  <div class="row"><select class="inp sp" value=${pick} onChange=${e=>setPick(e.target.value)} aria-label="ضيف دوا"><option value="">دوّر باسم الدوا التجاري أو العلمي…</option>${CATALOG.filter(c=>!items.some(i=>i.id===c.id)).map(c=>html`<option key=${c.id} value=${c.id}>${c.name}</option>`)}</select><button class="btn sec" disabled=${!pick} onClick=${()=>{setItems(l=>[...l,{...CATALOG.find(c=>c.id===pick),uid:pick+Math.random()}]);setPick('')}}><${I} n="plus"/>ضيف دوا</button></div></div></div>
+ <aside class="col" style=${{position:'sticky',top:'130px'}} role="complementary" aria-label="تنبيهات السلامة"><div class="row"><b class="h3 sp">تنبيهات السلامة</b><span class="sm" style=${{color:checking?'var(--info)':'var(--ok)'}}>${checking?'● بنراجع…':'● اتراجعت'}</span></div>
+  ${engineDown?html`<div class="sev" style=${{'--c':'var(--mfg)','--s':'var(--muted)','--o':'var(--fg)'}} role="alert"><div class="col"><b>فحص السلامة الآلي مش شغّال دلوقتي — راجع التعارضات بنفسك.</b><label class="row sm"><input type="checkbox" checked=${att} onChange=${e=>setAtt(e.target.checked)}/>أنا راجعت التعارضات والحساسية بنفسي</label></div></div>`:null}
+  ${!shown.length&&items.length&&!engineDown?html`<div class="sev okb"><span><${I} n="check"/></span><span>مفيش تعارضات معروفة.</span></div>`:null}
+  ${shown.filter(a=>a.sev!=='minor').map(a=>ov[a.key]?html`<div key=${a.key} class="sev okb"><span><${I} n="check"/></span><div class="col" style=${{gap:'2px'}}><b>اتوثّق — ${a.sev==='contraindicated'?'ممنوع':'خطير'}</b><span class="sm">${ov[a.key]}</span><button class="btn gho" style=${{minHeight:'30px',alignSelf:'flex-start',padding:'0 6px'}} onClick=${()=>setDlg(a)}>عدّل</button></div></div>`:
+   html`<${Sev} key=${a.key} sev=${a.sev} title=${a.title} pulse=${a.sev==='contraindicated'||a.sev==='major'}><div class="sm">${a.body}</div><div class="cap" style=${{opacity:.85}}>المصدر: ${a.src}${a.prev?' · '+a.prev:''}</div>${a.sev==='contraindicated'||a.sev==='major'?html`<button class="btn sec" style=${{alignSelf:'flex-start',minHeight:'36px',marginTop:'4px'}} onClick=${()=>setDlg(a)}>وثّق سبب التجاوز</button>`:null}</${Sev}>`)}
+  ${shown.filter(a=>a.sev==='minor').length?html`<details class="sev mn"><summary class="sm">ملاحظة بسيطة (${shown.filter(a=>a.sev==='minor').length})</summary>${shown.filter(a=>a.sev==='minor').map(a=>html`<div key=${a.key} class="sm">${a.title}</div>`)}</details>`:null}</aside>
+  <div style=${{gridColumn:'1 / -1',position:'sticky',bottom:'0',background:'var(--card)',borderRadius:'16px',boxShadow:'var(--e3)',border:'1px solid var(--border)',padding:'12px 16px'}} class="row"><div class="col" style=${{gap:'2px'}}><button class="btn pri" disabled=${!!reason||sending} onClick=${issue} style=${{minWidth:'210px'}}>${sending?'بنبعت…':'وقّع وابعت الروشتة'} <span class="kbd" style=${{color:'#fff',borderColor:'#fff6'}}>Ctrl ↵</span></button>${reason?html`<span class="why" role="status"><${I} n="tri" s=${14}/>${reason}</span>`:null}</div><button class="btn sec">معاينة</button><span class="sp"></span><span class="sm mut">${items.length} أدوية · ${blocking.length} تنبيه محتاج توثيق</span></div>
+ ${dlg?html`<${OverrideDlg} a=${dlg} close=${()=>setDlg(null)} save=${(txt)=>{if(dlg.sev==='contraindicated'){setReauth({a:dlg,txt});setDlg(null)}else{setOv(o=>({...o,[dlg.key]:txt}));setDlg(null)}}}/>`:null}
+ ${reauth?html`<${Reauth} title="التنبيه ده «ممنوع». اكتب كود تطبيق المصادقة عشان نأكد القرار." close=${()=>setReauth(null)} ok=${()=>{setOv(o=>({...o,[reauth.a.key]:reauth.txt}));setReauth(null);app.toast('اتوثّق التجاوز')}}/>`:null}</div>`}
+const REASONS=[['benefit_outweighs_risk','الفايدة أكبر من الخطر'],['allergy_disputed','الحساسية مش مؤكدة / متنازع عليها'],['desensitisation_protocol','بروتوكول إزالة حساسية (Desensitisation)'],['monitored_setting','تحت ملاحظة طبية (مستشفى/عيادة)'],['other','سبب تاني']];
+function OverrideDlg({a,close,save}){const [r,setR]=useState('');const [j,setJ]=useState('');const [ok,setOk]=useState(false);const words=j.trim().split(/\s+/).filter(Boolean).length;const valid=r&&j.trim().length>=15&&words>=3&&!/^(.)\1+$/.test(j.trim())&&ok;
+ return html`<div class="scrim center" style=${{position:'fixed'}}><div class="dlg" role="dialog" aria-modal="true" aria-label="توثيق تجاوز التنبيه"><div class="row"><b class="h3 sp">توثيق تجاوز التنبيه</b><button class="btn gho" onClick=${close} aria-label="اقفل"><${I} n="x"/></button></div>
+ <div class=${'sev '+SEVM[a.sev][0]} style=${{margin:'10px 0'}}><span><${I} n=${SEVM[a.sev][1]}/></span><b>${SEVM[a.sev][2]} — ${a.title}</b></div>
+ <fieldset style=${{border:0,padding:0,margin:'0 0 10px'}}><legend style=${{fontWeight:600,marginBottom:'6px'}}>السبب (مطلوب)</legend>${REASONS.map(([k,l])=>html`<label key=${k} class="row sm" style=${{minHeight:'34px'}}><input type="radio" name="rsn" checked=${r===k} onChange=${()=>setR(k)}/>${l}</label>`)}</fieldset>
+ <div class="field"><label for="just">اشرح السبب (15 حرف على الأقل)</label><textarea id="just" class="inp" value=${j} onInput=${e=>setJ(e.target.value)}></textarea><span class="cap num" style=${{color:j.trim().length>=15?'var(--ok)':'var(--mfg)'}}>${j.trim().length}/15${j&&words<3?' — محتاجين شرح أوضح، 3 كلمات على الأقل':''}</span></div>
+ <label class="row sm" style=${{marginBottom:'10px'}}><input type="checkbox" checked=${ok} onChange=${e=>setOk(e.target.checked)}/>أنا متحمّل المسؤولية الطبية عن القرار ده</label>
+ ${a.sev==='contraindicated'?html`<div class="sev mn" style=${{marginBottom:'10px'}}><span>ⓘ</span><span class="sm">التنبيه ده «ممنوع». هنطلب كود تطبيق المصادقة عشان نأكد القرار.</span></div>`:null}
+ <div class="row" style=${{justifyContent:'flex-end'}}><button class="btn sec" onClick=${close}>إلغاء</button><button class="btn pri" disabled=${!valid} onClick=${()=>save(REASONS.find(x=>x[0]===r)[1]+' — '+j.trim())}>احفظ التوثيق</button></div></div></div>`}
+function Reauth({title,close,ok}){const [c,setC]=useState('');const [bad,setBad]=useState(false);return html`<div class="scrim center" style=${{position:'fixed',zIndex:100}}><div class="dlg" role="dialog" aria-modal="true" aria-label="أكّد إنه انت" style=${{width:'420px',textAlign:'center'}}><span class="ib" style=${{width:'52px',height:'52px',margin:'0 auto'}}><${I} n="lock" s=${26}/></span><h2 class="h2">أكّد إنه انت</h2><p class="sm">${title}</p>
+ <input class="inp mono" dir="ltr" inputMode="numeric" maxLength="6" style=${{fontSize:'26px',textAlign:'center',letterSpacing:'.3em',height:'56px',width:'100%',borderColor:bad?'var(--danger)':null}} value=${c} onInput=${e=>{setC(e.target.value.replace(/\D/g,''));setBad(false)}} aria-label="كود تطبيق المصادقة" autoFocus/><div class="cap mut" style=${{margin:'6px 0 12px'}}>${bad?'الكود مش صح.':'للعرض: أي 6 أرقام'}</div>
+ <div class="row" style=${{justifyContent:'center'}}><button class="btn sec" onClick=${close}>إلغاء</button><button class="btn pri" disabled=${c.length!==6} onClick=${ok}>أكّد</button></div></div></div>`}
+function TimeoutOverlay({done}){const [s,setS]=useState(0);const [left]=useCountdown(60,s===0);useEffect(()=>{if(left===0)setS(1)},[left]);
+ if(s===0)return html`<div class="scrim center" style=${{position:'fixed'}}><div class="dlg" role="alertdialog" style=${{width:'440px'}}><b class="h3">هتخرج تلقائياً بعد <bdi class="num">${left}</bdi> ثانية لو مفيش نشاط.</b><p class="sm mut">متقلقش — اللي كتبته محفوظ.</p><div class="row" style=${{justifyContent:'flex-end'}}><button class="btn sec" onClick=${()=>setS(1)}>(للعرض) خلّيه يخلص</button><button class="btn pri" onClick=${done}>خلّيني داخل</button></div></div></div>`;
+ return html`<div style=${{position:'fixed',inset:0,zIndex:100,backdropFilter:'blur(6px)',background:'rgba(17,24,39,.35)',display:'grid',placeItems:'center'}}><${Reauth} title="خرجناك للأمان. اكتب كود تطبيق المصادقة — اللي كتبته لسه هنا تحت." close=${done} ok=${done}/></div>`}
+
+/* ---------------- PHARMACIST ---------------- */
+const RX0=[{id:'v',name:'Ventolin 100 mcg inhaler',ic:'pill',pres:1,done:0,by:''},{id:'a',name:'Aspocid 75 mg tab',ic:'pill',pres:30,done:20,by:'صيدلية النور'},{id:'p',name:'Panadol 500 mg tab',ic:'pill',pres:20,done:0,by:''}];
+function Pharmacist({cmd,mobile}){const app=useApp();const [st,setSt]=useState('scan');const [res,setRes]=useState(null);const [items,setItems]=useState(RX0.map(x=>({...x,now:x.pres-x.done})));const [race,setRace]=useState(false);const [flash,setFlash]=useState('');const [sending,setSending]=useState(false);const [rxSt,setRxSt]=useState('pending');const [left]=useCountdown(900,st==='disp');const [tab,setTab]=useState('scan');
+ useCmd(cmd,'pharm'+(mobile?'m':'w'),n=>{if(n==='forged'){doScan('forged')}if(n==='already'){doScan('already')}if(n==='race'){setRace(true);setSt('disp');setRes('valid')}if(n==='partial'){setSt('disp');setRes('valid');setItems(l=>l.map(x=>x.id==='v'?{...x,now:0}:x))}});
+ useEffect(()=>{app.report(mobile?(st==='disp'?'M-PHA-03 Dispense sheet':st==='res'?'M-PHA-02 Result':'M-PHA-01 Scanner'):(st==='disp'?'W-PHA-02 Dispense':st==='res'?'W-PHA-01r Result':'W-PHA-01 Verify'))},[st,mobile]);
+ async function doScan(kind){setSt('checking');setRes(null);await sleep(kind==='forged'?250:900);if(kind==='forged'){setRes('forged');setSt('res');return}if(app.offline){setRes('offline');setSt('res');return}setRes(kind);setSt('res')}
+ async function dispense(){setSending(true);await sleep(900);setSending(false);if(race){setRace(false);setItems(l=>l.map(x=>x.id==='a'?{...x,done:26,by:'صيدلية الشفا — دلوقتي',now:Math.min(x.now,4)}:x));setFlash('a');setTimeout(()=>setFlash(''),1300);app.toast('صيدلية تانية صرفت جزء دلوقتي — حدّثنا الكميات');return}
+  const full=items.every(x=>x.now===x.pres-x.done);setRxSt(full?'dispensed':'partially_dispensed');setSt('done');navigator.vibrate&&navigator.vibrate(20)}
+ const remain=items.filter(x=>x.now<x.pres-x.done).length;const cnt=items.filter(x=>x.now>0).length;
+ const resultView=()=>{if(st==='checking')return html`<div class="card row"><${Seal} state="verifying" size=${80}/><b>بنتأكد من الروشتة…</b></div>`;
+  if(res==='forged')return html`<div data-theme="emergency" class="themed col" style=${{background:'#7F1D1D',color:'#fff',borderRadius:'16px',padding:'28px',alignItems:'center',textAlign:'center',gap:'12px'}} role="alert"><${Seal} state="failed" size=${110}/><div class="em-h">الروشتة دي مش سليمة — ماتصرفهاش</div><div class="em-b">التوقيع الإلكتروني مش مطابق. ممكن تكون متزوّرة أو اتعدّلت.</div><div class="row"><button class="btn" style=${{border:'2px solid #fff',color:'#fff'}} onClick=${()=>app.toast('اتبلّغ — الإدارة هتراجع')}>بلّغ عن الروشتة</button><button class="btn" style=${{background:'#fff',color:'#000'}} onClick=${()=>setSt('scan')}>رجوع</button></div></div>`;
+  if(res==='already')return html`<div class="card col" style=${{alignItems:'center',textAlign:'center'}}><${Seal} state="grey" size=${96}/><${Badge} st="dispensed"/><b class="h3">اتصرفت بالكامل يوم 23 نوفمبر الساعة <bdi class="num">8:14 PM</bdi> في صيدلية النور</b><button class="btn sec" onClick=${()=>setSt('scan')}>امسح روشتة تانية</button></div>`;
+  const off=res==='offline';
+  return html`<div class="card col"><div class="row" style=${{background:'var(--oksurf)',color:'var(--okon)',margin:'-16px -16px 6px',padding:'14px 16px',borderRadius:'16px 16px 0 0'}}><${Seal} state=${off?'offline':'authentic'} size=${72} stamp=${true}/><div class="col" style=${{gap:'2px'}}><b class="h3">${off?'الروشتة سليمة — بس الصرف محتاج نت':'روشتة سليمة وموثّقة'}</b><bdi class="mono sm">RX-2026-000123</bdi></div></div>
+   <div class="sm">الدكتور: كريم عادل · ترخيص <bdi class="num">EG-MD-44821</bdi> · مستشفى الإسماعيلية العام</div><div class="sm">المريضة: منى عادل · 36 سنة · أنثى</div><div class="row wrap"><span class="sm">حساسية المريضة:</span><span class="chip ana">⛔ Penicillins</span><span class="chip" style=${{color:'var(--caut)'}}>Ibuprofen</span></div>
+   <div class="sev mn"><span>ⓘ</span><span class="sm">الدكتور وثّق تجاوز تنبيه: <bdi>Warfarin + Aspirin</bdi></span></div>
+   <button class="btn pri big" disabled=${off} onClick=${()=>setSt('disp')}>كمّل للصرف</button>${off?html`<span class="why"><${I} n="wifioff" s=${14}/>مفيش نت: تقدر تتأكد إن الروشتة سليمة، بس مينفعش تصرف.</span>`:null}</div>`};
+ const scanView=html`<div class="card col"><div class="row" role="tablist"><button role="tab" aria-selected=${tab==='scan'} class="btn" style=${{background:tab==='scan'?'var(--psub)':'transparent',color:tab==='scan'?'var(--ponsub)':'var(--fg)'}} onClick=${()=>setTab('scan')}>امسح الكود</button><button role="tab" aria-selected=${tab==='man'} class="btn" style=${{background:tab==='man'?'var(--psub)':'transparent',color:tab==='man'?'var(--ponsub)':'var(--fg)'}} onClick=${()=>setTab('man')}>رقم الروشتة + الكود</button></div>
+  ${tab==='scan'?html`<div style=${{background:'#0b0f16',borderRadius:'14px',height:mobile?'300px':'280px',display:'grid',placeItems:'center',position:'relative'}}><div style=${{width:'200px',height:'200px',border:'3px solid #fff',borderRadius:'18px',boxShadow:'0 0 0 2000px rgba(0,0,0,.35)'}}></div><span style=${{position:'absolute',bottom:'12px',color:'#fff',background:'rgba(0,0,0,.72)',borderRadius:'999px',padding:'6px 14px',fontSize:'14px'}}>خلّي كود المريض جوه المربع</span></div>
+   <div class="sm mut">الكاميرا مش متاحة في العرض — اختار سيناريو:</div><div class="row wrap"><button class="btn pri" onClick=${()=>doScan('valid')}>محاكاة: كود سليم</button><button class="btn sec" onClick=${()=>doScan('already')}>اتصرفت قبل كده</button><button class="btn sec" onClick=${()=>doScan('forged')}>كود متزوّر</button></div>`:
+  html`<div class="field"><label>رقم الروشتة</label><input class="inp mono" dir="ltr" defaultValue="RX-2026-000123"/></div><div class="field"><label>كود الورقة (6 حروف)</label><input class="inp mono" dir="ltr" defaultValue="K7Q2MX"/></div><div class="row wrap"><button class="btn sec" onClick=${()=>doScan('valid')}>ابعت كود SMS لموبايل المريضة (<bdi class="num">+20 10•• ••• 334</bdi>)</button><button class="btn sec" onClick=${()=>doScan('valid')}>تحقق بوش المريضة</button></div>`}</div>`;
+ const dispView=html`<div class="col">${race?html`<div class="sev mj"><span><${I} n="info"/></span><span class="sm">(للعرض) صيدلية تانية هتصرف جزء في نفس اللحظة — دوس «اصرف» وشوف إيه اللي بيحصل.</span></div>`:null}
+  <div class="card col"><div class="row wrap"><bdi class="mono">RX-2026-000123</bdi><${Badge} st=${rxSt}/><span class="sp"></span><${Ring} left=${left} total=${900} size=${58}/></div><div class="row wrap sm"><span>منى عادل · 36 · أنثى</span><span class="chip ana">⛔ Penicillins</span></div>
+  ${items.map(x=>{const rem=x.pres-x.done;return html`<div key=${x.id} class=${'col '+(flash===x.id?'flash':'')} style=${{borderTop:'1px solid var(--border)',paddingTop:'10px',gap:'6px'}}><div class="row"><span class="ib"><${I} n="pill" s=${18}/></span><bdi class="num sp" style=${{fontWeight:700}}>${x.name}</bdi></div>
+   <div class="row wrap sm"><span>المكتوب <b class="num">${x.pres}</b></span><span>اتصرف قبل كده <b class="num">${x.done}</b>${x.by?' ('+x.by+')':''}</span><span>الباقي <b class="num">${rem}</b></span></div>
+   <div class="row wrap"><div class="stepper" role="group" aria-label="هتصرف دلوقتي"><button onClick=${()=>setItems(l=>l.map(y=>y.id===x.id?{...y,now:Math.max(0,y.now-1)}:y))} aria-label="أقل">−</button><span class="num">${x.now}</span><button onClick=${()=>setItems(l=>l.map(y=>y.id===x.id?{...y,now:Math.min(rem,y.now+1)}:y))} aria-label="أكتر">+</button></div>
+    <button class="chip" style=${{padding:'6px 12px',color:x.now===rem&&rem>0?'var(--ok)':'var(--mfg)',background:x.now===rem&&rem>0?'var(--oksurf)':'transparent'}} aria-pressed=${x.now===rem} onClick=${()=>setItems(l=>l.map(y=>y.id===x.id?{...y,now:rem}:y))}>✓ اتصرف</button>
+    <button class="chip" style=${{padding:'6px 12px',color:x.now===0?'var(--warn)':'var(--mfg)',background:x.now===0?'var(--wsurf)':'transparent'}} aria-pressed=${x.now===0} onClick=${()=>setItems(l=>l.map(y=>y.id===x.id?{...y,now:0}:y))}>مش متوفر عندي</button>${x.now<rem?html`<span class="badge b-partial">لسه متبقّي ${rem-x.now}</span>`:null}</div></div>`})}
+  ${remain?html`<div class="sev mj"><span><${I} n="tri"/></span><span class="sm">${remain===1?'فيه دوا هيفضل متبقّي':`فيه ${remain} أدوية هتفضل متبقّية`} — المريضة تقدر تصرفه من أي صيدلية لحد 24 ديسمبر.</span></div>`:null}
+  <label class="row sm"><input type="checkbox" defaultChecked/>شرحت للمريضة طريقة الاستخدام</label>
+  <button class="btn pri big" disabled=${sending||!cnt||app.offline} onClick=${dispense}>${sending?'بنأكد الصرف… متقفلش الشاشة':remain?`اصرف ${cnt} من ${items.length}`:'اصرف'}${mobile?' (Face ID)':''}</button>${app.offline?html`<span class="why">الصرف محتاج نت عشان مايحصلش صرف مرتين.</span>`:null}</div></div>`;
+ const doneView=html`<div class="card col" style=${{alignItems:'center',textAlign:'center',padding:'28px'}}><span class="ib" style=${{width:'64px',height:'64px',background:'var(--oksurf)',color:'var(--ok)'}}><${I} n="check" s=${34}/></span><${Badge} st=${rxSt}/><b class="h2">${rxSt==='dispensed'?'الروشتة اتصرفت بالكامل.':'اتصرف جزء. الباقي يتصرف من أي صيدلية لحد 24 ديسمبر.'}</b><button class="btn pri" onClick=${()=>{setSt('scan');setItems(RX0.map(x=>({...x,now:x.pres-x.done})));setRxSt('pending')}}>امسح روشتة تانية</button></div>`;
+ const main=st==='disp'?dispView:st==='done'?doneView:(st==='res'||st==='checking')?html`<div class="col">${resultView()}${st==='res'?html`<button class="btn gho" style=${{alignSelf:'flex-start'}} onClick=${()=>setSt('scan')}>رجوع للمسح</button>`:null}</div>`:scanView;
+ if(mobile)return html`<div class="canvasglow" style=${{position:'absolute',inset:0,display:'flex',flexDirection:'column'}}><div style=${{height:'54px',flex:'none'}}></div><${Ribbon} label="مفيش نت: التحقق شغّال، الصرف لأ"/><div class="scroll" style=${{flex:1,padding:'8px 14px 110px'}}><h1 class="h1" style=${{marginBottom:'8px'}}>${st==='disp'?'الصرف':'تحقق من روشتة'}</h1>${main}</div><nav class="tabbar glass">${[['امسح','qr'],['رقم الروشتة','rx'],['اللي اتصرف','log'],['حسابي','user']].map(([l,ic],i)=>html`<button key=${l} aria-current=${i===0?'page':null}><${I} n=${ic} s=${24}/>${l}</button>`)}</nav></div>`;
+ return html`<${WebShell} role="صيدلي" title="رقم الروشتة…" cur="v" setCur=${()=>setSt('scan')} nav=${[['v','تحقق وصرف','qr'],['h','سجل الصرف','log']]}><div class="row" style=${{marginBottom:'16px'}}><h1 class="h1 sp">${st==='disp'?'صرف الروشتة':'تحقق من روشتة'}</h1><span class="chip" style=${{color:'var(--fg)'}}>صيدلية الشفا — الإسماعيلية ▾</span></div>
+ <div style=${{display:'grid',gridTemplateColumns:'minmax(0,7fr) minmax(0,5fr)',gap:'20px'}}>${main}<div class="card col"><b class="h3">آخر عمليات تحقق</b>${[['10:41','RX-…0123','✓'],['10:12','RX-…0098','⛔'],['09:55','RX-…0091','⚪']].map(([t,r,s])=>html`<div key=${t} class="row sm"><bdi class="num">${t}</bdi><bdi class="mono sp">${r}</bdi><span>${s}</span></div>`)}<span class="cap mut">من غير أسماء مرضى (أقل بيانات لازمة)</span></div></div></${WebShell}>`}
+
+/* ---------------- PARAMEDIC (mobile, Tier E) ---------------- */
+function Paramedic({cmd}){const app=useApp();const [scr,setScr]=useState('scan');const [scen,setScen]=useState('match');const [p,setP]=useState(0);const [hint,setHint]=useState('خلّي وش المريض جوه الدايرة');const [low,setLow]=useState(false);const [sheet,setSheet]=useState(false);const [mins,setMins]=useState(52);const [queued,setQueued]=useState(0);
+ useCmd(cmd,'para',n=>{const m={spoof:'spoof',lowconf:'lowconf',nomatch:'nomatch',aidown:'aidown'}[n];if(m){setScen(m);setScr('scan');setLow(false);setSheet(false);run(m)}});
+ useEffect(()=>{app.report({scan:'M-PAR-02 Emergency scan (Tier E)',profile:'M-PAR-03 High-contrast profile',nomatch:'M-PAR-05 No match',locked:'Spoof lock (T-14)',contacts:'M-PAR-07 Contacts',offline:'M-PAR-06 Offline card',aidown:'Scan — AI down',card:'M-PAR-06 Offline card result',cardscan:'M-PAR-06 Card QR scan'}[scr])},[scr]);
+ const timer=useRef();
+ async function run(s){clearInterval(timer.current);setP(0);setHint('خلّي وش المريض جوه الدايرة');await sleep(500);setHint('النور قليل — شغّلنا الكشاف');await sleep(700);setHint('بنتعرّف…');let v=0;timer.current=setInterval(()=>{v+=7;setP(Math.min(100,v));if(v>=100)clearInterval(timer.current)},80);await sleep(1300);
+  navigator.vibrate&&navigator.vibrate(s==='match'?20:[10,40,10]);
+  if(s==='match'){setLow(false);setScr('profile')}else if(s==='lowconf'){setSheet(true)}else if(s==='nomatch'){setScr('nomatch')}else if(s==='spoof'){setScr('locked')}else if(s==='aidown'){setScr('aidown')}}
+ useEffect(()=>()=>clearInterval(timer.current),[]);
+ const bigBtn=(l,ic,on,st)=>html`<button class="em-btn row" style=${{justifyContent:'center',gap:'10px',background:st==='g'?'#30D158':st==='w'?'#FFD60A':'transparent',color:st?'#000':'#fff',border:st?'0':'2px solid #fff'}} onClick=${on}><${I} n=${ic} s=${26}/>${l}</button>`;
+ const wrap=(c)=>html`<div data-theme="emergency" class="themed" style=${{position:'absolute',inset:0,display:'flex',flexDirection:'column','--fs':Math.min(app.fs,1.3)}}><div style=${{height:'54px',flex:'none'}}></div>${app.offline?html`<div style=${{background:'#FF9F0A',color:'#000',fontWeight:800,textAlign:'center',padding:'8px',fontSize:'18px'}}>أوفلاين</div>`:null}<div class="scroll" style=${{flex:1,padding:'10px 16px 40px',display:'flex',flexDirection:'column',gap:'12px'}}>${c}</div></div>`;
+ if(scr==='cardscan'||(app.offline&&scr==='scan'))return wrap(html`<div class="em-h">${app.offline?'امسح كارت الطوارئ (شغّال من غير نت)':'امسح كارت الطوارئ'}</div><div style=${{height:'300px',border:'4px solid #fff',borderRadius:'18px',display:'grid',placeItems:'center'}}><span class="em-b">كاميرا QR</span></div>${app.offline?html`<div class="em-b">هنمسح الوش أول ما النت يرجع</div>`:null}${queued?html`<div class="em-b" style=${{color:'#FFD60A'}}>${queued} عملية مستنية تتبعت</div>`:null}${bigBtn('محاكاة: مسح كارت سليم','qr',()=>{if(app.offline){setQueued(q=>q+1);setScr('card')}else{setLow(false);setScr('profile');app.toast('اتفتحت جلسة بطريقة كارت الطوارئ')}},'g')}${bigBtn('محاكاة: كارت توقيعه مش سليم','x',()=>app.toast('الكارت ده مش سليم — متعتمدش عليه'))}${scr==='cardscan'?html`<button class="btn" style=${{border:'2px solid #fff',color:'#fff',minHeight:'56px'}} onClick=${()=>setScr('scan')}>رجوع للمسح بالوش</button>`:null}`);
+ if(scr==='locked')return html`<div data-theme="emergency" class="themed" style=${{position:'absolute',inset:0,background:'#7F1D1D',color:'#fff',padding:'90px 22px',display:'flex',flexDirection:'column',gap:'16px',alignItems:'center',textAlign:'center'}} role="alertdialog"><${I} n="lock" s=${72}/><div class="em-h">المسح اتقفل</div><div class="em-b">فيه محاولة غير طبيعية (صورة أو شاشة بدل وش حقيقي) واتسجلت للمراجعة.</div>${bigBtn('امسح كارت الطوارئ','qr',()=>setScr('cardscan'),'w')}<button class="btn" style=${{color:'#fff',border:'2px solid #fff',minHeight:'56px'}} onClick=${()=>{setScen('match');setScr('scan')}}>رجوع</button><div class="em-b" style=${{fontSize:'15px',opacity:.9}}>اتسجّل في سجل العمليات: BIO_SPOOF_SUSPECTED</div></div>`;
+ if(scr==='profile'||scr==='card')return wrap(html`${low?html`<div style=${{background:'#FFD60A',color:'#000',fontWeight:800,padding:'10px 12px',borderRadius:'10px'}} role="status">⚠ تعرّف ضعيف — اتأكد من الهوية أول ما تقدر</div>`:null}${scr==='card'?html`<div style=${{background:'#FF9F0A',color:'#000',fontWeight:800,padding:'10px 12px',borderRadius:'10px'}}>كارت أوفلاين — اتعمل 20 نوفمبر</div>`:null}
+  <div class="row"><span class="em-l sp">منى عادل · 36 · أنثى · <bdi class="mono">…9Q4D</bdi></span>${scr==='profile'?html`<span class="em-l allow-anim">⏱ ${mins} د</span>`:null}</div>
+  <div style=${{background:'#7F1D1D',borderRadius:'12px',padding:'12px 14px'}}><div class="em-l row"><${I} n="oct" s=${22}/>الحساسية</div><div class="em-h"><bdi>PENICILLINS</bdi> — حساسية مفرطة ✓</div></div>
+  <div class="row" style=${{borderBottom:'1px solid #3A3A3C',paddingBottom:'8px'}}><span class="em-l sp">فصيلة الدم</span><bdi class="em-d">O+</bdi></div><div class="em-b" style=${{color:'#FFD60A'}}>⚠ من كلام المريض — اتأكد قبل نقل الدم</div>
+  <div class="row" style=${{borderBottom:'1px solid #3A3A3C',paddingBottom:'8px'}}><span class="em-l sp">أمراض مزمنة</span><span class="em-b">ربو (2015)</span></div>
+  <div class="col" style=${{gap:'2px'}}><span class="em-l">أدوية حالية</span><bdi class="em-b">Warfarin 5 mg — daily</bdi><bdi class="em-b">Salbutamol — as needed</bdi></div>
+  <div class="em-b" style=${{fontSize:'15px'}}>ⓘ الدخول ده متسجل وبيتراجع</div>
+  ${scr==='profile'?html`${bigBtn('كلّم أهلها','phone',()=>setScr('contacts'),'g')}<div class="row"><button class="btn sp" style=${{border:'2px solid #fff',color:'#fff',minHeight:'56px'}} onClick=${()=>{setMins(m=>m+30);app.toast('اتمدّت 30 دقيقة (مرة واحدة بس)')}}>مدّ 30 دقيقة</button><button class="btn sp" style=${{border:'2px solid #fff',color:'#fff',minHeight:'56px'}} onClick=${()=>{setScr('scan');setScen('match')}}>اقفل الحالة</button></div>`:html`<button class="btn" style=${{border:'2px solid #fff',color:'#fff',minHeight:'56px'}} onClick=${()=>{app.setOffline(false);setScr('scan')}}>(للعرض) رجع النت — افتح الجلسة الكاملة</button>`}`);
+ if(scr==='contacts')return wrap(html`<div class="em-h">أهل المريضة</div>${[['عادل حسن','الأب','+20 111 222 3334']].map(([n,r,ph])=>html`<div key=${n} style=${{borderBottom:'1px solid #3A3A3C',paddingBottom:'12px'}} class="col"><span class="em-h">${n}</span><span class="em-b">${r} · <bdi class="num">${ph}</bdi></span>${bigBtn('كلّم','phone',()=>app.toast('بيتصل بـ '+ph),'g')}</div>`)}<div class="em-b" style=${{fontSize:'15px'}}>بيظهر بس اللي المريضة سمحت بيهم.</div><button class="btn" style=${{border:'2px solid #fff',color:'#fff',minHeight:'56px'}} onClick=${()=>setScr('profile')}>رجوع</button>`);
+ if(scr==='nomatch')return wrap(html`<div style=${{background:'#1C1C1E',borderRadius:'14px',padding:'14px'}}><div class="em-h">مش متسجل عندنا</div><div class="em-b">اعتبر تاريخه الطبي مش معروف.</div></div><div class="em-l">احتياطات المريض المجهول</div>${['افترض إن عنده حساسية ممكنة','دوّر على سوار أو كارت طبي','دوّر على موبايله — ممكن فيه كارت طوارئ','دوّر على بطاقة شخصية'].map(t=>html`<label key=${t} class="row em-b" style=${{minHeight:'56px',borderBottom:'1px solid #3A3A3C'}}><input type="checkbox" style=${{width:'28px',height:'28px'}}/>${t}</label>`)}${bigBtn('امسح كارت الطوارئ','qr',()=>setScr('cardscan'),'w')}${bigBtn('دوّر بالرقم القومي','search',()=>app.toast('استخدمه بس لو البطاقة في إيدك. البحث ده متسجل.'))}${bigBtn('امسح تاني (فاضل 2)','cam',()=>{setScr('scan');run('match')})}`);
+ if(scr==='aidown')return wrap(html`<div class="em-h">التعرّف على الوش واقف دلوقتي</div><div class="em-b">استخدم كارت الطوارئ أو الرقم القومي.</div>${bigBtn('امسح كارت الطوارئ','qr',()=>setScr('cardscan'),'w')}${bigBtn('دوّر بالرقم القومي','search',()=>app.toast('استخدمه بس لو البطاقة في إيدك. البحث ده متسجل.'))}<button class="btn" style=${{border:'2px solid #fff',color:'#fff',minHeight:'56px'}} onClick=${()=>{setScen('match');setScr('scan')}}>رجوع</button>`);
+ return wrap(html`<div class="row"><span class="em-l sp">مسح طوارئ</span><span class="em-l" style=${{color:'#30D158'}}>● مباشر</span></div>
+  <div style=${{height:'360px',borderRadius:'16px',background:'linear-gradient(#1f2a37,#0b0f16)',display:'grid',placeItems:'center',position:'relative'}}><div style=${{width:'210px',height:'270px',border:'4px solid #fff',borderRadius:'50%'}}></div><span style=${{position:'absolute',bottom:'14px',background:'rgba(0,0,0,.8)',padding:'8px 16px',borderRadius:'999px',fontSize:'20px',fontWeight:600}}>${hint}</span></div>
+  <div class="prog allow-anim" role="progressbar" aria-valuenow=${p} aria-label="بنتعرّف"><i style=${{width:p+'%'}}></i></div>
+  <div class="row" style=${{gap:'10px'}}><button class="btn" style=${{border:'2px solid #fff',color:'#fff',minHeight:'64px',width:'64px'}} aria-label="شغّل الكشاف"><${I} n="torch" s=${26}/></button><button class="em-btn sp" style=${{background:'#fff',color:'#000'}} onClick=${()=>run(scen)}>◉ صوّر</button></div>
+  <div class="row" style=${{gap:'10px'}}>${bigBtn('امسح كارت الطوارئ','qr',()=>setScr('cardscan'))}</div><div class="row">${bigBtn('دوّر بالرقم القومي','search',()=>app.toast('استخدمه بس لو البطاقة في إيدك. البحث ده متسجل.'))}</div>
+  ${sheet?html`<div class="scrim" style=${{zIndex:60}}><div class="sheet" style=${{background:'#1C1C1E',color:'#fff'}} role="dialog" aria-label="تطابق محتمل"><div class="grab"></div><div class="em-h">فيه تطابق محتمل — أكّد</div><div class="em-b">اختار المريض لو متأكد. مش متأكد؟ استخدم كارت الطوارئ أو الرقم القومي.</div>
+   ${[['أنثى','30–39'],['أنثى','30–39']].map(([s,a],i)=>html`<div key=${i} class="row" style=${{border:'2px solid #3A3A3C',borderRadius:'14px',padding:'12px',margin:'8px 0'}}><${I} n="user" s=${40}/><span class="em-b sp">${s} · <bdi class="num">${a}</bdi> سنة</span><button class="btn" style=${{background:'#FFD60A',color:'#000',minHeight:'56px',fontWeight:800}} onClick=${()=>{setSheet(false);setLow(true);setScr('profile')}}>ده المريض</button></div>`)}
+   <button class="em-btn" style=${{background:'transparent',color:'#fff',border:'2px solid #fff'}} onClick=${()=>{setSheet(false);setScr('nomatch')}}>مش حد فيهم</button><div class="em-b" style=${{fontSize:'14px',marginTop:'8px'}}>الاختيار صالح دقيقتين</div></div></div>`:null}`)}
+
+function ERDesk(){const app=useApp();useEffect(()=>{app.report('W-ER-01 ER console (Sunlight)')},[]);const [open,setOpen]=useState(false);
+ return html`<div data-theme="sunlight" class="themed" style=${{position:'absolute',inset:0,padding:'28px 36px',display:'flex',flexDirection:'column',gap:'18px'}}><div class="row"><h1 class="em-h sp">حالات الطوارئ — مستشفى الإسماعيلية العام</h1><button class="btn pri big">تعرّف على مريض</button></div>
+ ${!open?html`<div style=${{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'18px'}}>${[['منى عادل · 36 · أنثى','⛔ PENICILLIN — حساسية مفرطة','O+ ✓ · ⏱ فاضل 41 دقيقة',false],['يوسف كمال · 61 · ذكر','مفيش حساسية متسجلة','A- ✓ · ⏱ فاضل 12 دقيقة',true]].map(([n,a,b,l])=>html`<button key=${n} class="card col" style=${{textAlign:'start',border:'2px solid #000',borderRadius:'14px',padding:'0',overflow:'hidden'}} onClick=${()=>setOpen(true)}>${l?html`<div style=${{background:'#FFD60A',padding:'6px 12px',fontWeight:800}}>⚠ تعرّف ضعيف</div>`:null}<div class="col" style=${{padding:'14px'}}><b class="em-l">${n}</b><span class="em-b" style=${{color:a.startsWith('⛔')?'#B00020':'#000'}}>${a}</span><span class="em-b">${b}</span></div></button>`)}</div>`:
+ html`<div style=${{display:'grid',gridTemplateColumns:'3fr 2fr',gap:'24px'}}><div class="col"><div style=${{border:'4px solid #B00020',borderRadius:'12px',padding:'14px'}}><div class="em-l" style=${{color:'#B00020'}}>⛔ الحساسية</div><div class="em-h" style=${{color:'#B00020'}}>PENICILLINS — حساسية مفرطة</div></div><div class="row" style=${{borderBottom:'2px solid #000'}}><span class="em-l sp">فصيلة الدم</span><bdi class="em-d" style=${{fontSize:'3em'}}>O+</bdi></div><div class="em-b">أمراض مزمنة: ربو</div><div class="em-b">أدوية: <bdi>Warfarin 5 mg</bdi>، <bdi>Salbutamol</bdi></div></div>
+ <div class="col"><b class="em-l">منى عادل · 36 · أنثى · <bdi class="mono">…9Q4D</bdi></b><span class="em-b">⏱ فاضل 41 دقيقة</span><span class="em-b">عادل حسن (الأب): <bdi class="num">+20 111 222 3334</bdi></span><span class="sm">الدخول ده متسجل وبيتراجع</span><button class="btn sec big" onClick=${()=>setOpen(false)}>رجوع للحالات</button></div></div>`}</div>`}
+
+/* ---------------- ADMIN ---------------- */
+function Admin({cmd}){const app=useApp();const [cur,setCur]=useState('ov');const [broken,setBroken]=useState(false);const [dlg,setDlg]=useState(false);const [reauth,setReauth]=useState(false);const [rev,setRev]=useState({});const [n,setN]=useState(0);
+ useCmd(cmd,'admin',n=>{if(n==='chain'){setCur('audit');setBroken(true)}});
+ useEffect(()=>{app.report({ov:'W-ADM-01 Overview',users:'W-ADM-02 Users',audit:'W-ADM-07 Audit log',bg:'W-ADM-08 Break-glass review'}[cur])},[cur]);
+ useEffect(()=>{if(cur!=='ov')return;let v=0;const id=setInterval(()=>{v+=37;setN(Math.min(1284,v));if(v>=1284)clearInterval(id)},16);return()=>clearInterval(id)},[cur]);
+ const chain=html`<span class="badge" style=${{background:broken?'var(--dsurf)':'var(--oksurf)',color:broken?'var(--don)':'var(--okon)'}}>${broken?'⛔ السلسلة مكسورة عند العملية رقم 48213':'● سلسلة السجل سليمة — اتراجعت 03:00'}</span>`;
+ return html`<${WebShell} role="أدمن" title="دوّر على مستخدم أو رقم ملف…" cur=${cur} setCur=${setCur} nav=${[['ov','نظرة عامة','home'],['users','المستخدمين','users'],['audit','سجل العمليات','log'],['bg','مراجعة دخول الطوارئ','shield']]}>
+ ${cur==='ov'?html`<div class="col" style=${{gap:'20px'}}><div class="row"><h1 class="h1 sp">نظرة عامة</h1>${chain}</div><div style=${{display:'grid',gridTemplateColumns:'repeat(12,minmax(0,1fr))',gap:'20px'}}>${[['المستخدمين النشطين',n.toLocaleString('en-US')],['تراخيص مستنية مراجعة','6'],['دخول طوارئ (7 أيام)','14'],['تنبيهات أمنية مفتوحة','2']].map(([l,v])=>html`<div key=${l} class="tile" style=${{gridColumn:'span 3'}}><span class="sm mut">${l}</span><span class="disp num">${v}</span></div>`)}
+  <div class="tile" style=${{gridColumn:'span 8'}}><b class="h3">نسبة تجاوز التنبيهات لكل دكتور</b>${[['د. كريم عادل',4],['د. سارة فتحي',2],['د. أحمد نبيل',19]].map(([d,p])=>html`<div key=${d} class="row sm"><span style=${{width:'120px'}}>${d}</span><div class="sp" style=${{height:'10px',background:'var(--muted)',borderRadius:'5px'}}><div style=${{width:p*3+'%',height:'100%',borderRadius:'5px',background:p>10?'var(--warn)':'var(--primary)'}}></div></div><b class="num">${p}%</b></div>`)}</div>
+  <div class="tile" style=${{gridColumn:'span 4'}}><b class="h3">موافقات مستنياك</b><span class="sm">تحويل «نور محمد» لأدمن — طلبها أدمن تاني</span><div class="row"><button class="btn pri" style=${{minHeight:'36px'}}>وافق</button><button class="btn sec" style=${{minHeight:'36px'}}>ارفض</button></div></div></div><div class="sev mn"><span>ⓘ</span><span class="sm">الأدمن مش بيشوف بيانات طبية.</span></div></div>`:
+ cur==='users'?html`<div class="col"><h1 class="h1">المستخدمين</h1><div class="card" style=${{padding:0,overflow:'hidden'}}><table class="tbl"><thead><tr><th>الاسم</th><th>الدور</th><th>الحالة</th><th>الترخيص</th><th></th></tr></thead><tbody>${[['د. كريم عادل','دكتور','شغّال','متوثّق'],['د. سلمى حسن','صيدلي','شغّال','متوثّق'],['أحمد سعيد','مسعف','شغّال','متوثّق'],['د. أحمد نبيل','دكتور','شغّال','مستني المراجعة']].map(r=>html`<tr key=${r[0]}><td>${r[0]}</td><td>${r[1]}</td><td><span class="badge b-done">${r[2]}</span></td><td>${r[3]}</td><td class="n"><button class="btn sec" style=${{minHeight:'32px'}} onClick=${()=>setDlg(r[0])}>أوقف الترخيص</button></td></tr>`)}</tbody></table></div></div>`:
+ cur==='audit'?html`<div class="col"><div class="row"><h1 class="h1 sp">سجل العمليات</h1>${chain}<button class="btn sec">صدّر CSV (من غير بيانات حساسة)</button></div>${broken?html`<div class="sev ci" role="alert"><span><${I} n="oct"/></span><div><b>السلسلة مكسورة عند العملية رقم 48213</b><div class="sm">اتبعت تنبيه حرج للأدمنز. افتح العملية عشان تراجعها.</div></div></div>`:null}
+  <div class="card" style=${{padding:0,overflow:'hidden'}}><table class="tbl"><thead><tr><th>الوقت</th><th>مين</th><th>الدور</th><th>العملية</th><th>الملف</th><th>النتيجة</th></tr></thead><tbody>${[['10:41:07','د. كريم','دكتور','PATIENT_RECORD_READ','9Q4D','✓'],['10:39:52','أحمد (إسعاف)','مسعف','EMERGENCY_PROFILE_READ','9Q4D','✓'],['10:12:30','د. سلمى','صيدلي','RX_VERIFY_FAILED','—','✕'],['09:58:11','د. كريم','دكتور','ALERT_OVERRIDDEN','9Q4D','✓'],['09:40:02','أحمد (إسعاف)','مسعف','BIO_SPOOF_SUSPECTED','—','✕']].map((r,i)=>html`<tr key=${i}><td><bdi class="num">${r[0]}</bdi></td><td>${r[1]}</td><td>${r[2]}</td><td><bdi class="mono" style=${{fontSize:'12.5px'}}>${r[3]}</bdi></td><td><bdi class="mono">${r[4]}</bdi></td><td>${r[5]}</td></tr>`)}</tbody></table></div></div>`:
+ html`<div class="col"><h1 class="h1">مراجعة دخول الطوارئ</h1>${[['أحمد سعيد','إسعاف الإسماعيلية','بصمة الوش','فاقد الوعي','AMB-4471',true],['محمود علي','مستشفى الإسماعيلية العام','كارت الطوارئ','مش قادر يتكلم','—',false]].map(([p,s,m,r,i,l],k)=>html`<div key=${k} class="card row wrap" style=${{borderTop:l?'4px solid var(--warn)':null}}><div class="sp col" style=${{gap:'2px'}}>${l?html`<span class="badge b-partial" style=${{width:'fit-content'}}>تعرّف ضعيف</span>`:null}<b>${p} · ${s}</b><span class="sm">${m} · ${r} · رقم البلاغ <bdi class="mono">${i}</bdi> · امبارح <bdi class="num">11:42 PM</bdi></span></div>${rev[k]?html`<span class="badge ${rev[k]==='ok'?'b-done':'b-partial'}">${rev[k]==='ok'?'مناسب':'مش مناسب'}</span>`:html`<button class="btn sec" onClick=${()=>setRev(v=>({...v,[k]:'ok'}))}>مناسب <span class="kbd">A</span></button><button class="btn sec" onClick=${()=>setRev(v=>({...v,[k]:'bad'}))}>مش مناسب <span class="kbd">I</span></button>`}</div>`)}</div>`}
+ ${dlg?html`<div class="scrim center" style=${{position:'fixed'}}><div class="dlg" role="dialog" aria-modal="true"><b class="h3">أوقف ترخيص ${dlg} مؤقتاً؟</b><p class="sm">الروشتات اللي اتكتبت قبل الإيقاف هتفضل تتصرف. الشخص ده هيخرج من كل الأجهزة خلال 30 ثانية.</p><div class="field"><label for="rs">السبب (مطلوب)</label><input id="rs" class="inp" placeholder="مثلاً: ورق الترخيص ناقص"/></div><div class="row" style=${{justifyContent:'flex-end'}}><button class="btn sec" onClick=${()=>setDlg(false)}>إلغاء</button><button class="btn dan" onClick=${()=>{setReauth(true)}}>أوقف الترخيص</button></div></div></div>`:null}
+ ${reauth?html`<${Reauth} title="للإجراء ده محتاجين كود تطبيق المصادقة." close=${()=>setReauth(false)} ok=${()=>{setReauth(false);setDlg(false);app.toast('الترخيص اتوقف واتسجّل في سجل العمليات')}}/>`:null}</${WebShell}>`}
+
+/* ---------------- WebOnly / phone-only notices ---------------- */
+function Notice({title,body,act}){return html`<div class="canvasglow" style=${{position:'absolute',inset:0,display:'grid',placeItems:'center',padding:'24px'}}><div class="card col" style=${{maxWidth:'440px',textAlign:'center',alignItems:'center',padding:'28px'}}><span class="ib" style=${{width:'56px',height:'56px'}}><${I} n="info" s=${28}/></span><b class="h2">${title}</b><p class="bodylg mut">${body}</p>${act}</div></div>`}
+
+/* ---------------- App ---------------- */
+const ROLES=[['patient','مريض'],['doctor','دكتور'],['pharmacist','صيدلي'],['paramedic','مسعف'],['admin','أدمن']];
+const EDGES=[['spoof','محاولة تلاعب بالوش','مسعف · قفل أحمر'],['allergy','تعارض دوا مع حساسية','دكتور · ممنوع + توثيق'],['redflag','أعراض طوارئ للمساعد','مريض · شاشة حمرا'],['offline','أوفلاين','حسب الدور'],['lowconf','تطابق ضعيف','مسعف · تأكيد'],['nomatch','مريض مش متسجل','مسعف · احتياطات'],['race','صرف متزامن','صيدلي · تحديث الكميات'],['partial','صرف جزئي','صيدلي · ٢ من ٣'],['already','اتصرفت قبل كده','صيدلي · منع'],['forged','روشتة متزوّرة','صيدلي · ماتصرفش'],['aidown','المساعد واقع','مريض · بديل يدوي'],['timeout','انتهاء الجلسة','دكتور · المسودة محفوظة'],['license','ترخيص موقوف','دكتور · قفل'],['breakglass','إشعار دخول طوارئ','مريض · شفافية'],['qrexpire','كود الصيدلية خلص','مريض · كود جديد'],['engine','فحص السلامة واقف','دكتور · مراجعة يدوية'],['chain','سجل العمليات اتكسر','أدمن · تنبيه حرج'],['enrol','تسجيل بصمة الوش 3D','مريض · Face mesh']];
+const EDGE_ROLE={spoof:['paramedic','phone'],allergy:['doctor','laptop'],redflag:['patient','phone'],lowconf:['paramedic','phone'],nomatch:['paramedic','phone'],race:['pharmacist',null],partial:['pharmacist',null],already:['pharmacist',null],forged:['pharmacist',null],aidown:['patient','phone'],timeout:['doctor','laptop'],license:['doctor','laptop'],breakglass:['patient','phone'],qrexpire:['patient','phone'],engine:['doctor','laptop'],chain:['admin','laptop'],enrol:['patient','phone']};
+function readHash(){const h=(location.hash||'').slice(1);return ROLES.some(r=>r[0]===h)?h:null}
+function App(){const [role,setRole]=useState(readHash()||'patient');const [device,setDevice]=useState('phone');const [theme,setTheme]=useState('light');const [fs,setFs]=useState(1);const [rmUser,setRm]=useState(false);const [offline,setOffline]=useState(false);const [toasts,setToasts]=useState([]);const [cmd,setCmd]=useState(null);const [sheet,setSheet]=useState(null);const [screenId,setScreenId]=useState('');const [flags,setFlags]=useState({engineDown:false});const [lowPower,setLowPower]=useState(false);const [force,setForce]=useState(null);
+ const sysRM=useMemo(()=>matchMedia('(prefers-reduced-motion: reduce)').matches,[]);const reduced=rmUser||sysRM;
+ const tier=useMemo(()=>{if(reduced||lowPower||!HAS_GL)return 'C';return (navigator.deviceMemory||8)<4?'B':'A'},[reduced,lowPower]);
+ const toast=useCallback(msg=>{const id=Math.random();setToasts(t=>[...t.slice(-2),{id,msg}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3800)},[]);
+ const fire=useCallback(name=>{if(name==='offline'){setOffline(o=>!o);return}if(name==='allergy')setFlags(f=>({...f,engineDown:false}));if(name==='engine'){setFlags(f=>({...f,engineDown:true}));name='allergy'}const m=EDGE_ROLE[name];if(m){setRole(m[0]);if(m[1])setDevice(m[1]);else if(device!=='phone'&&device!=='laptop')setDevice('laptop')}setTimeout(()=>setCmd(c=>({name,n:(c?c.n:0)+1,t:Date.now()})),30)},[device]);
+ useEffect(()=>{const onH=()=>{const r=readHash();if(r)setRole(r)};addEventListener('hashchange',onH);return()=>removeEventListener('hashchange',onH)},[]);
+ useEffect(()=>{setForce(null);try{history.replaceState(null,'','#'+role)}catch(e){}if(role==='doctor'||role==='admin')setDevice('laptop');if(role==='patient'||role==='paramedic')setDevice('phone');if(role!=='doctor')setFlags({engineDown:false})},[role]);
+ const report=useCallback(id=>setScreenId(id||''),[]);
+ const ctx={role,device,offline,setOffline,reduced,tier,fs,setFs,toast,toasts,fire,report,setSheet,flags,setForce};
+ const stageRef=useRef();const devRef=useRef();const [scale,setScale]=useState(1);const [dims,setDims]=useState({w:426,h:898});
+ useEffect(()=>{const fit=()=>{const s=stageRef.current,d=devRef.current;if(!s||!d)return;const W=d.offsetWidth,H=d.offsetHeight;setDims({w:W,h:H});const aw=s.clientWidth-24,ah=(innerWidth<=900?Math.max(560,innerHeight*.9):s.clientHeight)-24;setScale(Math.min(1,aw/W,ah/H))};fit();const ro=new ResizeObserver(fit);ro.observe(stageRef.current);addEventListener('resize',fit);return()=>{ro.disconnect();removeEventListener('resize',fit)}},[device]);
+ let screen;
+ if(device==='phone'){screen=role==='patient'?html`<${Patient} cmd=${cmd}/>`:role==='paramedic'?html`<${Paramedic} cmd=${cmd}/>`:role==='pharmacist'?html`<${Pharmacist} cmd=${cmd} mobile=${true}/>`:html`<${Notice} title="الحساب ده بيشتغل على الموقع" body="افتح بوابة سمارت هيلث من اللابتوب عشان تكمّل." act=${html`<button class="btn pri" onClick=${()=>setDevice('laptop')}>بدّل لعرض اللابتوب</button>`}/>`}
+ else{screen=role==='doctor'?html`<${Doctor} cmd=${cmd}/>`:role==='admin'?html`<${Admin} cmd=${cmd}/>`:role==='pharmacist'?html`<${Pharmacist} cmd=${cmd} mobile=${false}/>`:role==='paramedic'?html`<${ERDesk}/>`:html`<${Notice} title="تطبيق المريض للموبايل" body="ملفك وروشتاتك وكارت الطوارئ في تطبيق الموبايل." act=${html`<button class="btn pri" onClick=${()=>setDevice('phone')}>بدّل لعرض الموبايل</button>`}/>`}
+ const scrTheme=force||(role==='paramedic'?(device==='phone'?'emergency':'sunlight'):theme);
+ const devInner=html`<div dir="rtl" class=${'scr'+(reduced?' rm':'')} data-theme=${scrTheme} data-low=${lowPower?'1':'0'} style=${{'--fs':fs}}>${device==='phone'?html`<div class="island"></div><div class="sbar"><bdi class="num">9:41</bdi><span class="row" style=${{gap:'5px'}}>${offline?html`<${I} n="wifioff" s=${16}/>`:html`<span>●●●</span>`}<span>${lowPower?'15%':'82%'}</span></span></div>`:null}${screen}<${Toasts}/>${sheet&&sheet.type==='stepup'?html`<${StepUp} onOk=${sheet.onOk} close=${()=>setSheet(null)}/>`:null}${device==='phone'?html`<div class="homeind"></div>`:null}</div>`;
+ const seg=(val,set,opts,label)=>html`<div class="grp"><span class="lbl">${label}</span><div class="seg" role="group" aria-label=${label}>${opts.map(([v,l])=>html`<button key=${v} aria-pressed=${val===v} onClick=${()=>set(v)}>${l}</button>`)}</div></div>`;
+ return html`<${Ctx.Provider} value=${ctx}><div class="studio"><aside class="panel" aria-label="التحكم في العرض"><h1>سمارت هيلث</h1><p class="sub">نموذج تفاعلي عالي الدقة — UI-08. كل البيانات تجريبية.</p>
+  ${seg(device,setDevice,[['laptop','💻 لابتوب'],['phone','📱 iPhone 16 Pro']],'الجهاز')}
+  ${seg(role,setRole,ROLES,'الدور')}
+  ${seg(theme,setTheme,[['light','فاتح'],['dark','غامق'],['sunlight','تباين عالي']],'المظهر (الطوارئ تلقائي)')}
+  ${seg(fs,setFs,[[1,'خط عادي'],[1.15,'كبير'],[1.3,'كبير جداً']],'حجم الخط')}
+  <div class="grp"><span class="lbl">الحركة والطاقة والشبكة</span><div class="seg"><button aria-pressed=${rmUser} onClick=${()=>setRm(v=>!v)}>تقليل الحركة</button><button aria-pressed=${lowPower} onClick=${()=>setLowPower(v=>!v)}>توفير البطارية</button><button aria-pressed=${offline} onClick=${()=>setOffline(v=>!v)}>أوفلاين</button></div></div>
+  <div class="grp"><span class="lbl">شغّل حالة طرفية (Edge case)</span><div class="edges">${EDGES.map(([k,l,t])=>html`<button key=${k} onClick=${()=>fire(k)}>${l}<span class="t">${t}</span></button>`)}</div></div>
+  <div class="specref" aria-live="polite">الشاشة: <b>${screenId||'—'}</b><br/>مستوى العرض: <b class="num">Tier ${tier}</b>${reduced?' · حركة مخففة':''}</div>
+  <p class="sub" style=${{marginTop:'12px'}}>الكاميرا مش متاحة داخل العرض، فالمسح بالوش محاكاة. أكواد QR توضيحية ومش بتتقري.</p></aside>
+ <main class="stage" ref=${stageRef}><div style=${{width:dims.w*scale+'px',height:dims.h*scale+'px',direction:'ltr',flex:'none'}}><div ref=${devRef} style=${{transform:`scale(${scale})`,transformOrigin:'0 0',width:'max-content'}}>${device==='phone'?html`<div class="phone">${devInner}</div>`:html`<div class="laptop"><div class="lid">${devInner}</div><div class="base"></div></div>`}</div></div></main></div></${Ctx.Provider}>`}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+}
+</script>
+</body>
+</html>
