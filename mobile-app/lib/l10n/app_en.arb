@@ -58,5 +58,8 @@
   "rxTamperBlock": "Signature Invalid — Do NOT Dispense",
   "rxAlreadyDispensed": "Prescription already fully dispensed",
   "rxOfflineWarn": "Offline: dispensing requires a live connection.",
-  "rxDispenseBtn": "Confirm Dispense"
+  "rxDispenseBtn": "Confirm Dispense",
+  "authDownloadAndroidApk": "Download Android App (APK)",
+  "platformCameraUnavailable": "Camera preview is unavailable on this device. Use National ID or run on mobile/web.",
+  "platformScannerUnavailable": "Live QR camera scanner is unavailable on this platform. Enter the SH1. token manually below."
 }

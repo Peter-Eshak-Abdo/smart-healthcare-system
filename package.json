@@ -2,24 +2,29 @@
   "name": "smarthealth",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=22.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
   },
+  "workspaces": [
+    "packages/*",
+    "backend-api",
+    "web-admin"
+  ],
   "scripts": {
-    "lint": "pnpm -r --if-present lint",
-    "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
-    "build": "pnpm -r --if-present build",
-    "contracts:openapi": "pnpm --filter @smarthealth/contracts openapi",
-    "contracts:check": "pnpm --filter @smarthealth/contracts check",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build -w @smarthealth/contracts && npm run build -w backend-api && npm run build -w web-admin",
+    "build:backend": "npm run build -w @smarthealth/contracts && npm run build -w backend-api",
+    "contracts:openapi": "npm run openapi -w @smarthealth/contracts",
+    "contracts:check": "npm run check -w @smarthealth/contracts",
     "tokens:build": "node scripts/tokens-build.mjs",
     "tokens:contrast": "node scripts/tokens-contrast.mjs",
     "i18n:sync": "node scripts/i18n-sync.mjs",
-    "keys:dev": "pnpm --filter backend-api keys:dev",
-    "seed:dev": "pnpm --filter backend-api seed:dev",
-    "db:reset": "supabase db reset",
-    "db:test": "bash supabase/tests/run.sh"
+    "keys:dev": "npm run keys:dev -w backend-api",
+    "seed:firebase": "npm run seed:firebase -w backend-api",
+    "dev:backend": "npm run dev -w backend-api",
+    "dev:web": "npm run dev -w web-admin"
   }
 }

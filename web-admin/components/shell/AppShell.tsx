@@ -20,7 +20,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useThemeMode } from '@/components/providers/AppProviders';
 import { OfflineRibbon } from '@/components/common/OfflineRibbon';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
+import { signOutFirebaseBrowser } from '@/lib/firebase/client';
 import { useRxBuilderStore } from '@/stores/rx-builder.store';
 
 export type PortalKind = 'doctor' | 'pharmacy' | 'er' | 'admin';
@@ -59,10 +59,7 @@ export function AppShell({
   const [lastActivity, setLastActivity] = useState<number>(() => Date.now());
 
   const handleLogout = useCallback(async () => {
-    const supabase = getSupabaseBrowser();
-    if (supabase) {
-      await supabase.auth.signOut().catch(() => undefined);
-    }
+    await signOutFirebaseBrowser();
     queryClient.clear();
     clearDrafts();
     router.push((locale === 'ar' ? '/login' : '/en/login') as never);

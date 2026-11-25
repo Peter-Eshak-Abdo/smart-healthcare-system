@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     app_env: str = "local"
     app_version: str = "1.0.0"
-    database_url_ai_ref: str = ""
+    refdata_snapshot_url: str = ""
     internal_jwt_public_key: str = ""
     models_dir: Path = Path("models")
     verify_model_checksums: bool = False

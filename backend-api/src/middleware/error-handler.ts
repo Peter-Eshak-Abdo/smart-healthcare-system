@@ -1,7 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
+import type { Firestore } from 'firebase-admin/firestore';
 import type { Logger } from 'pino';
-import type { DbPools } from '../db/pool.js';
-import { withSystemTx } from '../db/with-user-tx.js';
 import { writeAuditLog } from '../security/audit.js';
 import { AppError, getErrorTitle, toAppError } from '../shared/errors.js';
 import { sanitizeErrorForLog } from '../shared/logger.js';
@@ -13,7 +12,7 @@ export function notFoundMiddleware(): RequestHandler {
   };
 }
 
-export function errorHandlerMiddleware(logger: Logger, pools: DbPools | null): ErrorRequestHandler {
+export function errorHandlerMiddleware(logger: Logger, db: Firestore | null): ErrorRequestHandler {
   return (err, req, res, _next) => {
     void _next;
     const appErr = toAppError(err);
@@ -30,22 +29,20 @@ export function errorHandlerMiddleware(logger: Logger, pools: DbPools | null): E
       );
     }
 
-    if (appErr.audit && pools) {
+    if (appErr.audit && db) {
       const auth = res.locals.auth ?? null;
-      void withSystemTx(pools, (tx) =>
-        writeAuditLog(tx, auth, {
-          action: 'ACCESS_DENIED',
-          resourceType: 'http_route',
-          outcome: 'denied',
-          reason: appErr.code,
-          metadata: {
-            method: req.method,
-            path: req.originalUrl.split('?')[0],
-            status: appErr.status,
-          },
-        }),
-      ).catch(() => {
-        // Non-fatal if audit pool unavailable during denial logging
+      void writeAuditLog(db, auth, {
+        action: 'ACCESS_DENIED',
+        resourceType: 'http_route',
+        outcome: 'denied',
+        reason: appErr.code,
+        metadata: {
+          method: req.method,
+          path: req.originalUrl.split('?')[0],
+          status: appErr.status,
+        },
+      }).catch(() => {
+        // Non-fatal if Firestore unavailable during denial logging
       });
     }
 

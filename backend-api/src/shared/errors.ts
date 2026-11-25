@@ -5,7 +5,21 @@ import {
   type Locale,
 } from '@smarthealth/contracts';
 import { ZodError } from 'zod';
-import { mapPgError } from '../db/pg-errors.js';
+
+function mapFirestoreError(err: unknown): AppError | null {
+  if (typeof err !== 'object' || err === null || !('code' in err)) {
+    return null;
+  }
+  const code = (err as { code?: unknown }).code;
+  // gRPC status codes used by Firestore Admin SDK: 6 = ALREADY_EXISTS, 9 = FAILED_PRECONDITION, 10 = ABORTED
+  if (code === 6) {
+    return new AppError('CONFLICT_VERSION', { statusOverride: 409, detail: 'already_exists' });
+  }
+  if (code === 9 || code === 10) {
+    return new AppError('CONFLICT_VERSION', { detail: 'firestore_transaction_conflict' });
+  }
+  return null;
+}
 
 export interface AppErrorOptions {
   detail?: string;
@@ -225,9 +239,9 @@ export function toAppError(err: unknown): AppError {
       })),
     });
   }
-  const pgMapped = mapPgError(err);
-  if (pgMapped) {
-    return pgMapped;
+  const fsMapped = mapFirestoreError(err);
+  if (fsMapped) {
+    return fsMapped;
   }
   return new AppError('INTERNAL_ERROR', { cause: err });
 }

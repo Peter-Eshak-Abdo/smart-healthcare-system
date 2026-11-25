@@ -5,6 +5,11 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       'no-console': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
@@ -19,8 +24,13 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['**/integrations/supabase-admin*', '../integrations/supabase-admin*', '../../integrations/supabase-admin*'],
-              message: 'supabase-admin.ts may only be imported in modules/admin, modules/auth, or scripts.',
+              group: [
+                '**/integrations/firebase-admin*',
+                '../integrations/firebase-admin*',
+                '../../integrations/firebase-admin*',
+              ],
+              message:
+                'Direct Firebase Admin auth helpers may only be imported in modules/admin, modules/auth, or scripts.',
             },
           ],
         },

@@ -3,12 +3,11 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../../../core/platform/platform_services.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/sh_colors.dart';
@@ -35,11 +34,12 @@ class _ErScanScreenState extends ConsumerState<ErScanScreen> {
   @override
   void initState() {
     super.initState();
-    WakelockPlus.enable().catchError((_) {});
+    PlatformServices.enableEmergencyDisplay();
     _initCamera();
   }
 
   Future<void> _initCamera() async {
+    if (!PlatformServices.supportsCamera) return;
     try {
       final List<CameraDescription> cameras = await availableCameras();
       final CameraController ctrl = CameraController(
@@ -60,7 +60,7 @@ class _ErScanScreenState extends ConsumerState<ErScanScreen> {
   void dispose() {
     _camera?.dispose();
     _nidCtrl.dispose();
-    WakelockPlus.disable().catchError((_) {});
+    PlatformServices.disableEmergencyDisplay();
     super.dispose();
   }
 
@@ -77,7 +77,7 @@ class _ErScanScreenState extends ConsumerState<ErScanScreen> {
       final XFile shot = await cam.takePicture();
       final Uint8List raw = await shot.readAsBytes();
       final Uint8List jpg =
-          await FlutterImageCompress.compressWithList(raw, quality: 82);
+          await PlatformServices.compressJpegSafely(raw, quality: 82);
       final FormData fd = FormData()
         ..fields.add(MapEntry<String, String>('reason_code', _reason))
         ..files.add(
@@ -237,7 +237,9 @@ class _ErScanScreenState extends ConsumerState<ErScanScreen> {
             if (_mode == 'face') ...<Widget>[
               Center(
                 child: FaceMeshScanner(
-                  hint: l10n.erModeFace,
+                  hint: PlatformServices.supportsCamera
+                      ? l10n.erModeFace
+                      : l10n.platformCameraUnavailable,
                   emergency: true,
                 ),
               ),
@@ -247,18 +249,29 @@ class _ErScanScreenState extends ConsumerState<ErScanScreen> {
                 child: Text(l10n.erScanButton),
               ),
             ] else if (_mode == 'qr')
-              SizedBox(
-                height: 280,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: MobileScanner(
-                    onDetect: (BarcodeCapture capture) {
-                      final String? val = capture.barcodes.firstOrNull?.rawValue;
-                      if (val != null) _identifyCardQr(val);
-                    },
+              if (PlatformServices.supportsQrScanner)
+                SizedBox(
+                  height: 280,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: MobileScanner(
+                      onDetect: (BarcodeCapture capture) {
+                        final String? val = capture.barcodes.firstOrNull?.rawValue;
+                        if (val != null) _identifyCardQr(val);
+                      },
+                    ),
                   ),
-                ),
-              )
+                )
+              else
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.all(16),
+                    child: Text(
+                      l10n.platformScannerUnavailable,
+                      style: TextStyle(color: colors.mutedForeground),
+                    ),
+                  ),
+                )
             else ...<Widget>[
               TextField(
                 controller: _nidCtrl,

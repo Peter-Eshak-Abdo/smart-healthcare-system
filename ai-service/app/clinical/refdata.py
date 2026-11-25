@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import importlib
 import uuid
 from dataclasses import dataclass
+
+import httpx
 
 _SEED_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
@@ -670,135 +671,68 @@ class RefDataStore:
         return self._snapshot
 
     @classmethod
-    async def load(cls, database_url: str, dataset_version: str) -> RefDataStore:
+    async def load(cls, snapshot_url: str, dataset_version: str) -> RefDataStore:
         snap = build_seed_refdata(dataset_version=dataset_version)
         store = cls(snap)
-        if database_url:
-            await store.refresh(database_url)
+        if snapshot_url:
+            await store.refresh(snapshot_url)
         return store
 
-    async def refresh(self, database_url: str) -> None:
-        if not database_url:
+    async def refresh(self, snapshot_url: str) -> None:
+        """Optionally refresh reference drugs/DDI snapshot from an HTTPS JSON endpoint."""
+        if not snapshot_url:
             return
         try:
-            psycopg = importlib.import_module("psycopg")
-        except ImportError:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(snapshot_url)
+                response.raise_for_status()
+                payload = response.json()
+        except Exception:
             return
 
-        def _fetch() -> RefDataSnapshot:
-            with psycopg.connect(database_url) as conn, conn.cursor() as cur:
-                cur.execute(
-                    "select d.id::text, d.code, d.brand_name, d.generic_name "
-                    "from ref.drugs d where d.is_active"
-                )
-                drugs_rows = cur.fetchall()
-                drugs_by_id: dict[str, DrugSummary] = {}
-                med_terms: set[str] = set()
-                for did, code, brand, generic in drugs_rows:
-                    ds = DrugSummary(id=did, code=code, brand_name=brand, generic_name=generic)
-                    drugs_by_id[did] = ds
-                    drugs_by_id[code] = ds
-                    if brand.lower() != "paracetamol":
-                        med_terms.add(brand.lower())
-                    if generic.lower() != "paracetamol":
-                        med_terms.add(generic.lower())
+        if not isinstance(payload, dict):
+            return
+        version = payload.get("dataset_version")
+        drugs_raw = payload.get("drugs")
+        if not isinstance(version, str) or not isinstance(drugs_raw, list):
+            return
 
-                cur.execute("select drug_id::text, ingredient_code from ref.drug_ingredients")
-                di_map: dict[str, set[str]] = {}
-                code_to_id = {d.code: d.id for d in drugs_by_id.values()}
-                for did, ing in cur.fetchall():
-                    di_map.setdefault(did, set()).add(ing)
-                drug_ingredients: dict[str, frozenset[str]] = {
-                    k: frozenset(v) for k, v in di_map.items()
-                }
-                for code, did in code_to_id.items():
-                    if did in drug_ingredients:
-                        drug_ingredients[code] = drug_ingredients[did]
+        drugs_by_id: dict[str, DrugSummary] = dict(self._snapshot.drugs_by_id)
+        med_terms: set[str] = set(self._snapshot.medication_terms)
+        for item in drugs_raw:
+            if not isinstance(item, dict):
+                continue
+            did = str(item.get("id", ""))
+            code = str(item.get("code", ""))
+            brand = str(item.get("brand_name", ""))
+            generic = str(item.get("generic_name", ""))
+            if not did or not code:
+                continue
+            ds = DrugSummary(id=did, code=code, brand_name=brand, generic_name=generic)
+            drugs_by_id[did] = ds
+            drugs_by_id[code] = ds
+            if brand and brand.lower() != "paracetamol":
+                med_terms.add(brand.lower())
+            if generic and generic.lower() != "paracetamol":
+                med_terms.add(generic.lower())
 
-                cur.execute("select ingredient_code, class_code from ref.ingredient_classes")
-                ic_map: dict[str, set[str]] = {}
-                for ing, cls_code in cur.fetchall():
-                    ic_map.setdefault(ing, set()).add(cls_code)
+        self._snapshot = RefDataSnapshot(
+            dataset_version=version,
+            drugs_by_id=drugs_by_id,
+            drug_ingredients=self._snapshot.drug_ingredients,
+            ingredient_classes=self._snapshot.ingredient_classes,
+            ddi=self._snapshot.ddi,
+            cross=self._snapshot.cross,
+            dup_classes=self._snapshot.dup_classes,
+            drug_condition_rules=self._snapshot.drug_condition_rules,
+            specialty_codes=self._snapshot.specialty_codes,
+            medication_terms=frozenset(med_terms),
+        )
 
-                cur.execute("select code from ref.drug_classes where duplicate_check")
-                dup_classes = frozenset(r[0] for r in cur.fetchall())
-
-                cur.execute(
-                    "select source_ref, ingredient_a, ingredient_b, severity, mechanism_en, "
-                    "mechanism_ar, management_en, management_ar, source from ref.ddi_rules"
-                )
-                ddi: dict[tuple[str, str], list[DdiRule]] = {}
-                for ref_id, a, b, sev, m_en, m_ar, mg_en, mg_ar, src in cur.fetchall():
-                    pair = (min(a, b), max(a, b))
-                    ddi.setdefault(pair, []).append(
-                        DdiRule(
-                            rule_id=str(ref_id or f"{pair[0]}:{pair[1]}"),
-                            ingredient_a=pair[0],
-                            ingredient_b=pair[1],
-                            severity=sev,
-                            mechanism_en=m_en,
-                            mechanism_ar=m_ar,
-                            management_en=mg_en,
-                            management_ar=mg_ar,
-                            source=src,
-                        )
-                    )
-
-                cur.execute(
-                    "select allergen_class, target_class, severity_if_severe, severity_if_mild, "
-                    "note_en, note_ar from ref.allergy_cross_reactivity"
-                )
-                cross: dict[tuple[str, str], CrossReactivityRule] = {}
-                for idx, (ac, tc, s_sev, s_mild, n_en, n_ar) in enumerate(cur.fetchall(), start=1):
-                    cross[(ac, tc)] = CrossReactivityRule(
-                        rule_id=f"ALG-CLASS-{idx:03d}",
-                        allergen_class=ac,
-                        target_class=tc,
-                        severity_if_severe=s_sev,
-                        severity_if_mild=s_mild,
-                        note_en=n_en,
-                        note_ar=n_ar,
-                    )
-
-                cur.execute(
-                    "select class_code, ingredient_code, icd10_prefix, "
-                    "severity, message_en, message_ar from ref.drug_condition_rules"
-                )
-                cond_rules = tuple(
-                    DrugConditionRule(
-                        rule_id=f"DC-{idx:03d}",
-                        class_code=cc,
-                        ingredient_code=ic,
-                        icd10_prefix=pref,
-                        severity=sev,
-                        message_en=m_en,
-                        message_ar=m_ar,
-                    )
-                    for idx, (cc, ic, pref, sev, m_en, m_ar) in enumerate(cur.fetchall(), start=1)
-                )
-
-                cur.execute("select code from ref.specialties")
-                specialties = frozenset(r[0] for r in cur.fetchall())
-
-                return RefDataSnapshot(
-                    dataset_version=self._snapshot.dataset_version,
-                    drugs_by_id=drugs_by_id,
-                    drug_ingredients=drug_ingredients,
-                    ingredient_classes={k: frozenset(v) for k, v in ic_map.items()},
-                    ddi=ddi,
-                    cross=cross,
-                    dup_classes=dup_classes,
-                    drug_condition_rules=cond_rules,
-                    specialty_codes=specialties,
-                    medication_terms=frozenset(med_terms),
-                )
-
-        self._snapshot = await asyncio.to_thread(_fetch)
-
-    async def refresh_every(self, database_url: str, interval_sec: int = 600) -> None:
+    async def refresh_every(self, snapshot_url: str, interval_sec: int = 600) -> None:
         while True:
             await asyncio.sleep(interval_sec)
             try:
-                await self.refresh(database_url)
+                await self.refresh(snapshot_url)
             except Exception:
                 continue

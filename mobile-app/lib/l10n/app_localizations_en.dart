@@ -191,4 +191,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rxDispenseBtn => 'Confirm Dispense';
+
+  @override
+  String get authDownloadAndroidApk => 'Download Android App (APK)';
+
+  @override
+  String get platformCameraUnavailable =>
+      'Camera preview is unavailable on this device. Use National ID or run on mobile/web.';
+
+  @override
+  String get platformScannerUnavailable =>
+      'Live QR camera scanner is unavailable on this platform. Enter the SH1. token manually below.';
 }

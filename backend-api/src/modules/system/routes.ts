@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { request as undiciRequest } from 'undici';
 import type { AppDeps } from '../../app-deps.js';
+import { COLLECTIONS } from '../../firebase/firestore-types.js';
 import { exportPublicJwk } from '../../security/crypto/keyring.js';
 
 export function systemRoutes(deps: AppDeps): Router {
@@ -17,9 +18,9 @@ export function systemRoutes(deps: AppDeps): Router {
 
   router.get('/ready', async (_req, res) => {
     let dbOk = false;
-    if (deps.pools) {
+    if (deps.db) {
       try {
-        await deps.pools.defaultPool.query('select 1');
+        await deps.db.collection(COLLECTIONS.auditMeta).limit(1).get();
         dbOk = true;
       } catch {
         dbOk = false;

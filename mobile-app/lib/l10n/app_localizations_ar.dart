@@ -190,4 +190,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get rxDispenseBtn => 'تأكيد الصرف';
+
+  @override
+  String get authDownloadAndroidApk => 'حمّل تطبيق الأندرويد (APK)';
+
+  @override
+  String get platformCameraUnavailable =>
+      'الكاميرا مش متاحة على الجهاز ده. استخدم الرقم القومي أو افتح من الموبايل.';
+
+  @override
+  String get platformScannerUnavailable =>
+      'ماسح QR المباشر مش متاح على النظام ده. اكتب كود الروشتة SH1. يدوي تحت.';
 }

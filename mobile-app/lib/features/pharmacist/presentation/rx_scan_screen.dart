@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/platform/platform_services.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/sh_colors.dart';
 import '../../../l10n/app_localizations.dart';
@@ -115,18 +116,29 @@ class _RxScanScreenState extends ConsumerState<RxScanScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 240,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: MobileScanner(
-                  onDetect: (BarcodeCapture capture) {
-                    final String? val = capture.barcodes.firstOrNull?.rawValue;
-                    if (val != null) _verifyPickupToken(val);
-                  },
+            if (PlatformServices.supportsQrScanner)
+              SizedBox(
+                height: 240,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: MobileScanner(
+                    onDetect: (BarcodeCapture capture) {
+                      final String? val = capture.barcodes.firstOrNull?.rawValue;
+                      if (val != null) _verifyPickupToken(val);
+                    },
+                  ),
+                ),
+              )
+            else
+              Card(
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.all(16),
+                  child: Text(
+                    l10n.platformScannerUnavailable,
+                    style: TextStyle(color: colors.mutedForeground),
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 18),
             Text(l10n.rxManualTitle),
             const SizedBox(height: 8),

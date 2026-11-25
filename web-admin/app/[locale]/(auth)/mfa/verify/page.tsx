@@ -1,13 +1,18 @@
 'use client';
 
 import type { MeResponse } from '@smarthealth/contracts';
+import { TotpMultiFactorGenerator } from 'firebase/auth';
 import { ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import { ProblemAlert } from '@/components/common/ProblemAlert';
 import { apiFetch } from '@/lib/api/client';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
+import {
+  getPendingMfaResolver,
+  setPendingMfaResolver,
+  syncFirebaseSessionCookie,
+} from '@/lib/firebase/client';
 
 function portalHome(role: MeResponse['role'], prefix: string): string {
   switch (role) {
@@ -36,35 +41,28 @@ export default function MfaVerifyPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const supabase = getSupabaseBrowser();
-    if (!supabase) return;
+    const resolver = getPendingMfaResolver();
+    if (!resolver) {
+      router.push(`${prefix}/login` as never);
+      return;
+    }
+
     setError(null);
     setSubmitting(true);
     try {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const totp = factors?.totp?.find((f) => f.status === 'verified');
-      if (!totp) {
+      const hint = resolver.hints.find(
+        (h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID,
+      );
+      if (!hint) {
         router.push(`${prefix}/mfa/enroll` as never);
         return;
       }
 
-      const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({
-        factorId: totp.id,
-      });
-      if (chErr || !challenge) {
-        setError(chErr ?? new Error('Unable to start TOTP challenge'));
-        return;
-      }
-
-      const { error: verErr } = await supabase.auth.mfa.verify({
-        factorId: totp.id,
-        challengeId: challenge.id,
-        code: code.trim(),
-      });
-      if (verErr) {
-        setError(verErr);
-        return;
-      }
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code.trim());
+      const cred = await resolver.resolveSignIn(assertion);
+      setPendingMfaResolver(null);
+      const token = await cred.user.getIdToken(true);
+      await syncFirebaseSessionCookie(token);
 
       const me = await apiFetch<MeResponse>('/v1/me', { locale });
       router.push(portalHome(me.role, prefix) as never);

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/firebase_config.dart';
 import '../network/api_client.dart';
+import '../platform/platform_services.dart';
 import '../security/device_key_service.dart';
 import '../security/encrypted_storage.dart';
 import '../security/step_up_service.dart';
@@ -17,10 +18,7 @@ final largeFontProvider = StateProvider<bool>((Ref ref) => false);
 final activeRoleModeProvider =
     StateProvider<AppPortalMode>((Ref ref) => AppPortalMode.patient);
 
-const String _defaultApiBase = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:4000',
-);
+const String _envApiBase = String.fromEnvironment('API_BASE_URL');
 
 final encryptedStorageProvider =
     Provider<EncryptedStorage>((Ref ref) => EncryptedStorage());
@@ -29,15 +27,12 @@ final deviceKeyServiceProvider =
     Provider<DeviceKeyService>((Ref ref) => DeviceKeyService());
 
 final apiClientProvider = Provider<ApiClient>((Ref ref) {
+  final String baseUrl = _envApiBase.isNotEmpty
+      ? _envApiBase
+      : PlatformServices.defaultApiBaseUrl();
   return ApiClient(
-    baseUrl: _defaultApiBase,
-    tokenProvider: () async {
-      try {
-        return Supabase.instance.client.auth.currentSession?.accessToken;
-      } catch (_) {
-        return null;
-      }
-    },
+    baseUrl: baseUrl,
+    tokenProvider: FirebaseConfig.currentIdToken,
     localeProvider: () => ref.read(localeProvider).languageCode,
   );
 });

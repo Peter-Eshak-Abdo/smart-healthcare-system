@@ -1,8 +1,11 @@
 import type { AccountStatus, AppRole, LicenseStatus } from '@smarthealth/contracts';
-import { sql } from 'kysely';
+import type { Firestore } from 'firebase-admin/firestore';
 import type { Redis } from 'ioredis';
-import type { DbPools } from '../db/pool.js';
-import { withSystemTx } from '../db/with-user-tx.js';
+import {
+  COLLECTIONS,
+  type PractitionerDoc,
+  type UserDoc,
+} from '../firebase/firestore-types.js';
 import type { VerifiedClaims } from './jwt.js';
 import type { Permission } from './permissions.js';
 
@@ -49,7 +52,7 @@ function isLicenceValid(
 }
 
 export function createAuthContextService(
-  pools: DbPools,
+  db: Firestore,
   redis: Redis | RedisLike | null,
 ): AuthContextService {
   return {
@@ -62,69 +65,41 @@ export function createAuthContextService(
         }
       }
 
-      const record = await withSystemTx(pools, async (tx) => {
-        const res = await sql<{
-          id: string;
-          role: AppRole;
-          status: AccountStatus;
-          session_epoch: number;
-          full_name: string;
-          preferred_locale: 'ar' | 'en';
-          practitioner_type: 'doctor' | 'pharmacist' | 'paramedic' | null;
-          license_number: string | null;
-          license_status: LicenseStatus | null;
-          license_expires_at: string | null;
-          specialty_code: string | null;
-          facility_ids: string[] | null;
-        }>`
-          select
-            p.id,
-            p.role,
-            p.status,
-            p.session_epoch,
-            p.full_name,
-            p.preferred_locale,
-            pr.practitioner_type,
-            pr.license_number,
-            pr.license_status,
-            pr.license_expires_at::text as license_expires_at,
-            pr.specialty_code,
-            coalesce(
-              (select array_agg(pf.facility_id::text)
-                 from app.practitioner_facilities pf
-                where pf.practitioner_id = p.id and pf.ended_at is null),
-              array[]::text[]
-            ) as facility_ids
-          from app.profiles p
-          left join app.practitioners pr on pr.id = p.id
-          where p.id = ${userId}::uuid
-        `.execute(tx);
+      const userSnap = await db.collection(COLLECTIONS.users).doc(userId).get();
+      if (!userSnap.exists) return null;
+      const user = userSnap.data() as UserDoc;
 
-        const row = res.rows[0];
-        if (!row) return null;
-
-        const mapped: AuthContextRecord = {
-          userId: row.id,
-          role: row.role,
-          status: row.status,
-          sessionEpoch: row.session_epoch,
-          fullName: row.full_name,
-          preferredLocale: row.preferred_locale,
-          practitionerType: row.practitioner_type,
-          licenseNumber: row.license_number,
-          licenseStatus: row.license_status,
-          licenseExpiresAt: row.license_expires_at,
-          licenceValid: isLicenceValid(row.license_status, row.license_expires_at),
-          specialtyCode: row.specialty_code,
-          facilityIds: row.facility_ids ?? [],
-        };
-        return mapped;
-      });
-
-      if (record && redis) {
-        await redis.set(cacheKey, JSON.stringify(record), 'EX', 30);
+      let prac: PractitionerDoc | null = null;
+      if (user.role === 'doctor' || user.role === 'pharmacist' || user.role === 'paramedic') {
+        const pracSnap = await db.collection(COLLECTIONS.practitioners).doc(userId).get();
+        if (pracSnap.exists) {
+          prac = pracSnap.data() as PractitionerDoc;
+        }
       }
-      return record;
+
+      const mapped: AuthContextRecord = {
+        userId: user.id,
+        role: user.role,
+        status: user.status,
+        sessionEpoch: user.session_epoch ?? 0,
+        fullName: user.full_name,
+        preferredLocale: user.preferred_locale ?? 'ar',
+        practitionerType: prac?.practitioner_type ?? null,
+        licenseNumber: prac?.license_number ?? null,
+        licenseStatus: prac?.license_status ?? null,
+        licenseExpiresAt: prac?.license_expires_at ?? null,
+        licenceValid: isLicenceValid(
+          prac?.license_status ?? null,
+          prac?.license_expires_at ?? null,
+        ),
+        specialtyCode: prac?.specialty_code ?? null,
+        facilityIds: prac?.facility_ids ?? [],
+      };
+
+      if (redis) {
+        await redis.set(cacheKey, JSON.stringify(mapped), 'EX', 60);
+      }
+      return mapped;
     },
 
     async invalidate(userId: string): Promise<void> {

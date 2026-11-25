@@ -2,15 +2,16 @@ import { randomUUID } from 'node:crypto';
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { mapPgError } from '../../src/db/pg-errors.js';
+import { ZodError, z } from 'zod';
 import { InMemoryRedis } from '../../src/integrations/redis.js';
 import { errorHandlerMiddleware } from '../../src/middleware/error-handler.js';
 import { idempotencyMiddleware } from '../../src/middleware/idempotency.js';
 import { createRateLimitService } from '../../src/middleware/rate-limit.js';
 import { requestIdMiddleware } from '../../src/middleware/request-id.js';
+import { toAppError } from '../../src/shared/errors.js';
 import { createLogger } from '../../src/shared/logger.js';
 
-describe('idempotency, pg error mapping, and rate limiting', () => {
+describe('idempotency, Firestore error mapping, and rate limiting', () => {
   it('replays identical idempotent POST and rejects modified payload', async () => {
     const redis = new InMemoryRedis();
     const app = express();
@@ -48,23 +49,22 @@ describe('idempotency, pg error mapping, and rate limiting', () => {
     expect(conflict.body.code).toBe('IDEMPOTENCY_KEY_CONFLICT');
   });
 
-  it('maps critical PostgreSQL SQLSTATE codes cleanly to RFC 9457 AppErrors', () => {
-    expect(mapPgError({ code: '23505', message: 'id_already_registered' })?.status).toBe(409);
-    expect(
-      mapPgError({ code: '23514', constraint: 'quantity_dispensed_within_bounds' })?.code,
-    ).toBe('RX_QUANTITY_EXCEEDED');
-    expect(mapPgError({ code: 'P0003', message: 'session_expired' })?.code).toBe(
-      'EMERG_SESSION_EXPIRED',
-    );
-    expect(mapPgError({ code: 'P0004', message: 'contacts_not_shared' })?.code).toBe(
-      'EMERG_CONTACTS_NOT_SHARED',
-    );
-    expect(mapPgError({ code: 'P0005', message: 'consent_required' })?.code).toBe(
-      'BIO_CONSENT_REQUIRED',
-    );
-    expect(mapPgError({ code: '42501', message: 'verified licence required' })?.code).toBe(
-      'LICENSE_NOT_VALID',
-    );
+  it('maps Firestore gRPC conflicts and ZodErrors cleanly to RFC 9457 AppErrors', () => {
+    const dup = toAppError({ code: 6, message: 'ALREADY_EXISTS' });
+    expect(dup.status).toBe(409);
+    expect(dup.code).toBe('CONFLICT_VERSION');
+
+    const aborted = toAppError({ code: 10, message: 'ABORTED' });
+    expect(aborted.code).toBe('CONFLICT_VERSION');
+
+    let zodErr: unknown;
+    try {
+      z.object({ count: z.number().int() }).parse({ count: 'bad' });
+    } catch (e) {
+      zodErr = e;
+    }
+    expect(zodErr).toBeInstanceOf(ZodError);
+    expect(toAppError(zodErr).code).toBe('VALIDATION_FAILED');
   });
 
   it('enforces auth_ip rate limit with 429 RATE_LIMITED and Retry-After', async () => {

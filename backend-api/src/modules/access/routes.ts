@@ -1,18 +1,23 @@
-import { createHmac, randomInt } from 'node:crypto';
+import { createHmac, randomInt, randomUUID } from 'node:crypto';
 import {
   AccessLogQuerySchema,
   CreateShareCodeRequestSchema,
   GrantIdParamSchema,
 } from '@smarthealth/contracts';
 import { Router } from 'express';
-import { sql } from 'kysely';
 import type { AppDeps } from '../../app-deps.js';
-import { withUserTx } from '../../db/with-user-tx.js';
+import { requireDb } from '../../firebase/firestore-helpers.js';
+import {
+  COLLECTIONS,
+  type AccessGrantDoc,
+  type PatientDoc,
+  type ShareCodeDoc,
+  type SystemLogDoc,
+} from '../../firebase/firestore-types.js';
 import { requirePermission, requireStepUp } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { writeAuditLog } from '../../security/audit.js';
 import { AppError } from '../../shared/errors.js';
-import { decodeCursor, encodeCursor } from '../../shared/pagination.js';
 
 export function computeShareCodeHmac(
   blindIndexKey: Buffer,
@@ -27,13 +32,6 @@ export function computeShareCodeHmac(
 export function accessRoutes(deps: AppDeps): Router {
   const router = Router();
 
-  const requirePools = () => {
-    if (!deps.pools) {
-      throw new AppError('INTERNAL_ERROR', { detail: 'database_not_configured' });
-    }
-    return deps.pools;
-  };
-
   router.post(
     '/patients/me/share-codes',
     requirePermission('access_grant:manage:self'),
@@ -46,47 +44,51 @@ export function accessRoutes(deps: AppDeps): Router {
           grant_duration_days: number;
           scope: 'read_only' | 'read_write';
         };
-        const pools = requirePools();
-
+        const db = requireDb(deps);
+        const patSnap = await db.collection(COLLECTIONS.patients).doc(auth.userId).get();
+        if (!patSnap.exists) {
+          throw new AppError('RESOURCE_NOT_FOUND', { detail: 'patient_profile_not_found' });
+        }
+        const patient = patSnap.data() as PatientDoc;
         const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+        const codeHmacHex = computeShareCodeHmac(
+          deps.keyring.blindIndexKey,
+          patient.mrn,
+          code,
+        ).toString('hex');
 
-        const created = await withUserTx(pools, auth, async (tx) => {
-          const patient = await tx
-            .selectFrom('app.patients')
-            .select('mrn')
-            .where('id', '=', auth.userId)
-            .executeTakeFirstOrThrow();
+        const id = randomUUID();
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 15 * 60_000).toISOString();
+        const shareDoc: ShareCodeDoc = {
+          id,
+          patient_id: auth.userId,
+          mrn: patient.mrn,
+          code_hmac: codeHmacHex,
+          grant_duration_days: body.grant_duration_days,
+          scope: body.scope,
+          expires_at: expiresAt,
+          redeemed_at: null,
+          redeemed_by_doctor_id: null,
+          created_at: now.toISOString(),
+        };
 
-          const hmac = computeShareCodeHmac(deps.keyring.blindIndexKey, patient.mrn, code);
-
-          const inserted = await tx
-            .insertInto('app.share_codes')
-            .values({
-              patient_id: auth.userId,
-              code_hmac: hmac,
-              scope: body.scope,
-              grant_duration_days: body.grant_duration_days,
-            })
-            .returning(['id', 'expires_at'])
-            .executeTakeFirstOrThrow();
-
-          await writeAuditLog(tx, auth, {
-            action: 'SHARE_CODE_CREATED',
-            resourceType: 'share_code',
-            resourceId: inserted.id,
-            patientId: auth.userId,
-            metadata: {
-              scope: body.scope,
-              grant_duration_days: body.grant_duration_days,
-            },
-          });
-
-          return inserted;
+        await db.collection(COLLECTIONS.shareCodes).doc(id).set(shareDoc);
+        await writeAuditLog(db, auth, {
+          action: 'SHARE_CODE_CREATED',
+          resourceType: 'share_code',
+          resourceId: id,
+          patientId: auth.userId,
+          patientMrnLast4: patient.mrn_last4,
+          metadata: {
+            scope: body.scope,
+            grant_duration_days: body.grant_duration_days,
+          },
         });
 
         res.status(201).json({
           code,
-          expires_at: new Date(created.expires_at).toISOString(),
+          expires_at: expiresAt,
           grant_duration_days: body.grant_duration_days,
           scope: body.scope,
         });
@@ -102,57 +104,29 @@ export function accessRoutes(deps: AppDeps): Router {
     async (_req, res, next) => {
       try {
         const auth = res.locals.auth!;
-        const pools = requirePools();
+        const db = requireDb(deps);
+        const snap = await db
+          .collection(COLLECTIONS.accessGrants)
+          .where('patient_id', '==', auth.userId)
+          .orderBy('granted_at', 'desc')
+          .limit(50)
+          .get();
 
-        const data = await withUserTx(pools, auth, async (tx) => {
-          const rows = await sql<{
-            id: string;
-            grant_type: 'patient_share' | 'encounter' | 'admin_override';
-            practitioner_name: string;
-            practitioner_type: 'doctor' | 'pharmacist' | 'paramedic';
-            facility_name: string | null;
-            scope: 'read_only' | 'read_write';
-            status: 'active' | 'revoked' | 'expired';
-            granted_at: string;
-            expires_at: string;
-          }>`
-            select
-              ag.id,
-              ag.grant_type,
-              p.full_name as practitioner_name,
-              pr.practitioner_type,
-              (
-                select f.name
-                  from app.practitioner_facilities pf
-                  join app.facilities f on f.id = pf.facility_id
-                 where pf.practitioner_id = pr.id and pf.ended_at is null
-                 order by pf.started_at asc
-                 limit 1
-              ) as facility_name,
-              ag.scope,
-              ag.status,
-              ag.granted_at::text,
-              ag.expires_at::text
-            from app.access_grants ag
-            join app.practitioners pr on pr.id = ag.practitioner_id
-            join app.profiles p on p.id = pr.id
-            where ag.patient_id = ${auth.userId}::uuid
-            order by ag.granted_at desc
-          `.execute(tx);
-
-          return rows.rows.map((r) => ({
-            id: r.id,
-            grant_type: r.grant_type,
+        const data = snap.docs.map((doc) => {
+          const g = doc.data() as AccessGrantDoc;
+          return {
+            id: g.id,
+            grant_type: g.grant_type,
             practitioner: {
-              name: r.practitioner_name,
-              type: r.practitioner_type,
-              facility: r.facility_name,
+              name: g.doctor_name,
+              type: 'doctor' as const,
+              facility: g.facility_name,
             },
-            scope: r.scope,
-            status: r.status,
-            granted_at: new Date(r.granted_at).toISOString(),
-            expires_at: new Date(r.expires_at).toISOString(),
-          }));
+            scope: g.scope,
+            status: g.status,
+            granted_at: g.granted_at,
+            expires_at: g.expires_at,
+          };
         });
 
         res.status(200).json({ data });
@@ -170,33 +144,20 @@ export function accessRoutes(deps: AppDeps): Router {
       try {
         const auth = res.locals.auth!;
         const { grantId } = res.locals.validated!.params as { grantId: string };
-        const pools = requirePools();
-
-        await withUserTx(pools, auth, async (tx) => {
-          const updated = await tx
-            .updateTable('app.access_grants')
-            .set({
-              status: 'revoked',
-              revoked_at: sql`now()`,
-              revoked_by: auth.userId,
-            })
-            .where('id', '=', grantId)
-            .where('patient_id', '=', auth.userId)
-            .where('status', '=', 'active')
-            .returning('id')
-            .executeTakeFirst();
-
-          if (!updated) throw new AppError('RESOURCE_NOT_FOUND');
-
-          await writeAuditLog(tx, auth, {
-            action: 'ACCESS_GRANT_REVOKED',
-            resourceType: 'access_grant',
-            resourceId: grantId,
-            patientId: auth.userId,
-          });
+        const db = requireDb(deps);
+        const ref = db.collection(COLLECTIONS.accessGrants).doc(grantId);
+        const snap = await ref.get();
+        if (!snap.exists || (snap.data() as AccessGrantDoc).patient_id !== auth.userId) {
+          throw new AppError('RESOURCE_NOT_FOUND');
+        }
+        await ref.update({ status: 'revoked' });
+        await writeAuditLog(db, auth, {
+          action: 'ACCESS_GRANT_REVOKED',
+          resourceType: 'access_grant',
+          resourceId: grantId,
+          patientId: auth.userId,
         });
-
-        res.status(204).send();
+        res.status(204).end();
       } catch (err) {
         next(err);
       }
@@ -211,72 +172,26 @@ export function accessRoutes(deps: AppDeps): Router {
       try {
         const auth = res.locals.auth!;
         const query = res.locals.validated!.query as { limit: number; cursor?: string };
-        const pools = requirePools();
-        const cursor = query.cursor
-          ? decodeCursor(query.cursor, deps.keyring.blindIndexKey)
-          : null;
+        const db = requireDb(deps);
+        const snap = await db
+          .collection(COLLECTIONS.systemLogs)
+          .where('patient_id', '==', auth.userId)
+          .orderBy('seq', 'desc')
+          .limit(query.limit)
+          .get();
 
-        const page = await withUserTx(pools, auth, async (tx) => {
-          const rows = (
-            await sql<{
-              id: string;
-              occurred_at: string;
-              actor_name: string | null;
-              actor_role: 'patient' | 'doctor' | 'pharmacist' | 'paramedic' | 'admin' | null;
-              facility_name: string | null;
-              action: string;
-              resource_type: string | null;
-            }>`
-              select
-                l.id::text,
-                l.occurred_at::text,
-                l.actor_name,
-                l.actor_role::app.app_role as actor_role,
-                l.facility_name,
-                l.action,
-                l.resource_type
-              from private.patient_access_log(
-                ${query.limit + 1},
-                ${cursor?.t ?? null}::timestamptz
-              ) l
-            `.execute(tx)
-          ).rows;
-
-          const hasMore = rows.length > query.limit;
-          const sliced = hasMore ? rows.slice(0, query.limit) : rows;
-          const last = sliced.at(-1);
-
+        const data = snap.docs.map((doc) => {
+          const row = doc.data() as SystemLogDoc;
           return {
-            data: sliced.map((r) => {
-              let context: 'grant' | 'emergency' | 'pharmacy' | 'self' | 'system' = 'system';
-              if (r.action.startsWith('EMERGENCY_')) context = 'emergency';
-              else if (r.action.startsWith('RX_VERIFIED') || r.action.startsWith('RX_DISPENSED')) {
-                context = 'pharmacy';
-              } else if (r.actor_role === 'doctor') context = 'grant';
-              else if (r.actor_role === 'patient') context = 'self';
-
-              return {
-                at: new Date(r.occurred_at).toISOString(),
-                actor: {
-                  name: r.actor_name ?? 'SmartHealth System',
-                  role: r.actor_role ?? 'admin',
-                  facility: r.facility_name,
-                },
-                action: r.action,
-                context,
-              };
-            }),
-            page: {
-              next_cursor:
-                hasMore && last
-                  ? encodeCursor({ t: last.occurred_at, id: last.id }, deps.keyring.blindIndexKey)
-                  : null,
-              has_more: hasMore,
-            },
+            id: row.id,
+            occurred_at: row.occurred_at,
+            actor_name: row.actor_name ?? 'System',
+            actor_role: row.actor_role ?? 'system',
+            action: row.action,
+            resource_type: row.resource_type,
           };
         });
-
-        res.status(200).json(page);
+        res.status(200).json({ data, next_cursor: null });
       } catch (err) {
         next(err);
       }

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ProblemDetails } from '@smarthealth/contracts';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
+import { getFirebaseIdToken } from '@/lib/firebase/client';
 import { ApiRequestError } from './errors';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0';
@@ -17,14 +17,13 @@ export interface ApiCallOptions {
 }
 
 export async function apiFetch<T>(path: string, opts: ApiCallOptions = {}): Promise<T> {
-  const supabase = getSupabaseBrowser();
-  const token = supabase
-    ? (await supabase.auth.getSession()).data.session?.access_token
-    : undefined;
+  const token = await getFirebaseIdToken();
 
   const headers = new Headers({
     'X-Client': `web/${APP_VERSION}`,
-    'Accept-Language': opts.locale ?? (typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : 'ar'),
+    'Accept-Language':
+      opts.locale ??
+      (typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : 'ar'),
     'X-Request-Id': crypto.randomUUID(),
   });
   if (token) {

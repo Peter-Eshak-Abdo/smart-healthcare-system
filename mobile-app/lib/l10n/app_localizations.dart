@@ -451,6 +451,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تأكيد الصرف'**
   String get rxDispenseBtn;
+
+  /// No description provided for @authDownloadAndroidApk.
+  ///
+  /// In ar, this message translates to:
+  /// **'حمّل تطبيق الأندرويد (APK)'**
+  String get authDownloadAndroidApk;
+
+  /// No description provided for @platformCameraUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا مش متاحة على الجهاز ده. استخدم الرقم القومي أو افتح من الموبايل.'**
+  String get platformCameraUnavailable;
+
+  /// No description provided for @platformScannerUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'ماسح QR المباشر مش متاح على النظام ده. اكتب كود الروشتة SH1. يدوي تحت.'**
+  String get platformScannerUnavailable;
 }
 
 class _AppLocalizationsDelegate

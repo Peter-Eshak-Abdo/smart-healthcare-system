@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: smarthealth-backend-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci && npm run build -w @smarthealth/contracts && npm run build -w backend-api
+    startCommand: npm run start -w backend-api
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: WEB_ORIGIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: KEK_CURRENT_ID
+        value: "k1"
+      - key: KEK_K1
+        sync: false
+      - key: BLIND_INDEX_KEY
+        sync: false
+      - key: RX_SIGNING_KEY_ID
+        value: "rx-2026-11"
+      - key: RX_SIGNING_PRIVATE_KEY
+        sync: false
+      - key: EMERGENCY_CARD_SIGNING_KEY_ID
+        value: "ec-2026-11"
+      - key: EMERGENCY_CARD_SIGNING_PRIVATE_KEY
+        sync: false
+      - key: INTERNAL_JWT_SIGNING_KEY
+        sync: false
+      - key: AI_SERVICE_URL
+        sync: false

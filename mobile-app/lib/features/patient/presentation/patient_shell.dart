@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/firebase_config.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../l10n/app_localizations.dart';
@@ -25,9 +25,7 @@ class _PatientShellState extends ConsumerState<PatientShell> {
 
   Future<void> _signOut() async {
     await ref.read(encryptedStorageProvider).wipeAllOnSignOut();
-    try {
-      await Supabase.instance.client.auth.signOut();
-    } catch (_) {}
+    await FirebaseConfig.signOut();
     if (mounted) context.go('/login');
   }
 

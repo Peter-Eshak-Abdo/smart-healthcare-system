@@ -1,8 +1,9 @@
 import type { AppRole, MeResponse } from '@smarthealth/contracts';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { serverApiFetch } from '@/lib/api/server';
 import { isApiErrorCode } from '@/lib/api/errors';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { getFirebaseServerAuth } from '@/lib/firebase/admin';
 
 export async function requireRole(
   expectedRole: AppRole | AppRole[],
@@ -11,22 +12,24 @@ export async function requireRole(
   const allowed = Array.isArray(expectedRole) ? expectedRole : [expectedRole];
   const prefix = locale === 'ar' ? '' : `/${locale}`;
 
-  const supabase = await createServerSupabase();
-  if (!supabase) {
+  const cookieStore = await cookies();
+  const idToken = cookieStore.get('sh_id_token')?.value;
+  if (!idToken) {
     redirect(`${prefix}/login` as never);
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    redirect(`${prefix}/login` as never);
+  const fbAuth = getFirebaseServerAuth();
+  if (fbAuth) {
+    try {
+      await fbAuth.verifyIdToken(idToken, true);
+    } catch {
+      redirect(`${prefix}/login` as never);
+    }
   }
 
   let me: MeResponse;
   try {
-    me = await serverApiFetch<MeResponse>('/v1/me', session.access_token, locale);
+    me = await serverApiFetch<MeResponse>('/v1/me', idToken, locale);
   } catch (err) {
     if (isApiErrorCode(err, 'AUTH_MFA_REQUIRED')) {
       redirect(`${prefix}/mfa/verify` as never);

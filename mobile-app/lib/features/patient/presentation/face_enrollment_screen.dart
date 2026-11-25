@@ -2,10 +2,10 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/platform/platform_services.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/sh_colors.dart';
@@ -33,6 +33,7 @@ class _FaceEnrollmentScreenState extends ConsumerState<FaceEnrollmentScreen> {
   }
 
   Future<void> _initCamera() async {
+    if (!PlatformServices.supportsCamera) return;
     try {
       final List<CameraDescription> cameras = await availableCameras();
       final CameraDescription front = cameras.firstWhere(
@@ -77,7 +78,7 @@ class _FaceEnrollmentScreenState extends ConsumerState<FaceEnrollmentScreen> {
         final XFile raw = await cam.takePicture();
         final Uint8List bytes = await raw.readAsBytes();
         final Uint8List compressed =
-            await FlutterImageCompress.compressWithList(bytes, quality: 82);
+            await PlatformServices.compressJpegSafely(bytes, quality: 82);
         frames.add(compressed);
       }
 
@@ -128,6 +129,15 @@ class _FaceEnrollmentScreenState extends ConsumerState<FaceEnrollmentScreen> {
                   ),
                 ),
               ),
+              if (!PlatformServices.supportsCamera)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(bottom: 12),
+                  child: Text(
+                    l10n.platformCameraUnavailable,
+                    style: TextStyle(color: colors.mutedForeground, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               if (_status != null)
                 Padding(
                   padding: const EdgeInsetsDirectional.only(bottom: 12),

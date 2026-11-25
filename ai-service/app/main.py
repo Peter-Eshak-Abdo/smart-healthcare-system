@@ -35,7 +35,7 @@ async def _init_app_state(
 
     backend = face_backend or UnloadedOnnxBackend(settings.models_dir)
     transform = TemplateTransform.from_env(settings)
-    refstore = await RefDataStore.load(settings.database_url_ai_ref, settings.dataset_version)
+    refstore = await RefDataStore.load(settings.refdata_snapshot_url, settings.dataset_version)
     red_flags = RedFlagEngine.from_yaml(settings.red_flags_path)
     llm = llm_client or build_llm_client(settings)
 
@@ -54,8 +54,8 @@ async def _init_app_state(
     )
     app.state.executors = PriorityExecutors()
 
-    if settings.database_url_ai_ref:
-        return asyncio.create_task(refstore.refresh_every(settings.database_url_ai_ref, 600))
+    if settings.refdata_snapshot_url:
+        return asyncio.create_task(refstore.refresh_every(settings.refdata_snapshot_url, 600))
     return None
 
 
@@ -93,11 +93,21 @@ def create_app(
         lifespan=lifespan,
     )
 
+    app.include_router(health_router)
     app.include_router(health_router, prefix="/internal/v1")
     app.include_router(face_router, prefix="/internal/v1")
     app.include_router(clinical_router, prefix="/internal/v1")
     app.include_router(assistant_router, prefix="/internal/v1")
     app.include_router(fingerprint_router, prefix="/internal/v1")
+
+    @app.get("/")
+    async def root() -> dict[str, str]:
+        return {
+            "service": "smarthealth-ai-service",
+            "status": "ok",
+            "health": "/internal/v1/health",
+        }
+
     return app
 
 

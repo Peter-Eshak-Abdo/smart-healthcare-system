@@ -1,134 +1,121 @@
 import { PatchMeRequestSchema } from '@smarthealth/contracts';
 import { Router } from 'express';
-import { sql } from 'kysely';
 import type { AppDeps } from '../../app-deps.js';
-import { withUserTx } from '../../db/with-user-tx.js';
+import { requireDb } from '../../firebase/firestore-helpers.js';
+import {
+  COLLECTIONS,
+  type FacilityDoc,
+  type PatientDoc,
+  type PractitionerDoc,
+  type UserDoc,
+} from '../../firebase/firestore-types.js';
 import { validate } from '../../middleware/validate.js';
+import { writeAuditLog } from '../../security/audit.js';
 import { aad } from '../../security/crypto/field-cipher.js';
 import { STAFF_ROLES } from '../../security/permissions.js';
-import { writeAuditLog } from '../../security/audit.js';
 import { isMinorPatient } from '../../shared/egyptian-id.js';
 import { AppError } from '../../shared/errors.js';
-import { getAuthSupabasePort } from '../auth/routes.js';
 
 export function meRoutes(deps: AppDeps): Router {
   const router = Router();
-  const sbPort = getAuthSupabasePort(deps);
-
-  const requirePools = () => {
-    if (!deps.pools) {
-      throw new AppError('INTERNAL_ERROR', { detail: 'database_not_configured' });
-    }
-    return deps.pools;
-  };
 
   async function buildMeDto(auth: NonNullable<Express.Locals['auth']>) {
-    const pools = requirePools();
-    const accountInfo = await sbPort.getUserEmailAndMfa(auth.userId).catch(() => ({
+    const db = requireDb(deps);
+    const accountInfo = await deps.firebaseAdmin.getUserEmailAndMfa(auth.userId).catch(() => ({
       email: null,
       phone: null,
       mfaEnrolled: false,
     }));
 
-    return withUserTx(pools, auth, async (tx) => {
-      const profile = await tx
-        .selectFrom('app.profiles')
-        .select(['id', 'role', 'status', 'full_name', 'phone_enc', 'preferred_locale'])
-        .where('id', '=', auth.userId)
-        .executeTakeFirstOrThrow();
+    const userSnap = await db.collection(COLLECTIONS.users).doc(auth.userId).get();
+    if (!userSnap.exists) {
+      throw new AppError('RESOURCE_NOT_FOUND', { detail: 'profile_not_found' });
+    }
+    const profile = userSnap.data() as UserDoc & { phone_enc?: string | null };
 
-      let decryptedPhone = accountInfo.phone;
-      if (profile.phone_enc) {
-        decryptedPhone = deps.fieldCipher.decrypt(
-          profile.phone_enc,
-          aad('profiles', 'phone_enc', profile.id),
-        );
+    let decryptedPhone = accountInfo.phone ?? profile.phone ?? null;
+    if (profile.phone_enc) {
+      decryptedPhone = deps.fieldCipher.decrypt(
+        profile.phone_enc,
+        aad('users', 'phone_enc', profile.id),
+      );
+    }
+
+    let patientSummary: { mrn: string | null; onboarded: boolean; is_minor: boolean } | null = null;
+    if (profile.role === 'patient') {
+      const patSnap = await db.collection(COLLECTIONS.patients).doc(auth.userId).get();
+      if (patSnap.exists) {
+        const pat = patSnap.data() as PatientDoc;
+        patientSummary = {
+          mrn: pat.mrn,
+          onboarded: true,
+          is_minor: isMinorPatient(pat.date_of_birth),
+        };
+      } else {
+        patientSummary = { mrn: null, onboarded: false, is_minor: false };
       }
+    }
 
-      let patientSummary: { mrn: string | null; onboarded: boolean; is_minor: boolean } | null =
-        null;
-      if (profile.role === 'patient') {
-        const pat = await tx
-          .selectFrom('app.patients')
-          .select(['mrn', 'date_of_birth'])
-          .where('id', '=', auth.userId)
-          .executeTakeFirst();
-        patientSummary = pat
-          ? { mrn: pat.mrn, onboarded: true, is_minor: isMinorPatient(pat.date_of_birth) }
-          : { mrn: null, onboarded: false, is_minor: false };
-      }
+    let practitionerSummary = null;
+    if (
+      profile.role === 'doctor' ||
+      profile.role === 'pharmacist' ||
+      profile.role === 'paramedic'
+    ) {
+      const prSnap = await db.collection(COLLECTIONS.practitioners).doc(auth.userId).get();
+      if (prSnap.exists) {
+        const pr = prSnap.data() as PractitionerDoc;
+        let specialty: { code: string; name: { en: string; ar: string } } | null = null;
+        if (pr.specialty_code) {
+          const spSnap = await db
+            .collection(COLLECTIONS.specialtiesReference)
+            .doc(pr.specialty_code)
+            .get();
+          if (spSnap.exists) {
+            const sp = spSnap.data() as { code: string; name_en: string; name_ar: string };
+            specialty = { code: sp.code, name: { en: sp.name_en, ar: sp.name_ar } };
+          }
+        }
 
-      let practitionerSummary = null;
-      if (
-        profile.role === 'doctor' ||
-        profile.role === 'pharmacist' ||
-        profile.role === 'paramedic'
-      ) {
-        const pr = await tx
-          .selectFrom('app.practitioners')
-          .select([
-            'practitioner_type',
-            'license_number',
-            'license_status',
-            'specialty_code',
-          ])
-          .where('id', '=', auth.userId)
-          .executeTakeFirst();
-
-        if (pr) {
-          let specialty = null;
-          if (pr.specialty_code) {
-            const sp = await tx
-              .selectFrom('ref.specialties')
-              .select(['code', 'name_en', 'name_ar'])
-              .where('code', '=', pr.specialty_code)
-              .executeTakeFirst();
-            if (sp) {
-              specialty = {
-                code: sp.code,
-                name: { en: sp.name_en, ar: sp.name_ar },
-              };
+        const facilities: Array<{ id: string; name: string; type: FacilityDoc['type'] }> = [];
+        for (const facId of pr.facility_ids ?? []) {
+          const fSnap = await db.collection(COLLECTIONS.facilities).doc(facId).get();
+          if (fSnap.exists) {
+            const f = fSnap.data() as FacilityDoc;
+            if (f.is_active) {
+              facilities.push({ id: f.id, name: f.name, type: f.type });
             }
           }
-
-          const facs = await sql<{ id: string; name: string; type: 'hospital' | 'clinic' | 'pharmacy' | 'ambulance_service' }>`
-            select f.id, f.name, f.type
-              from app.practitioner_facilities pf
-              join app.facilities f on f.id = pf.facility_id
-             where pf.practitioner_id = ${auth.userId}::uuid
-               and pf.ended_at is null
-               and f.is_active
-             order by pf.started_at asc
-          `.execute(tx);
-
-          practitionerSummary = {
-            type: pr.practitioner_type,
-            license_number: pr.license_number,
-            license_status: pr.license_status,
-            specialty,
-            facilities: facs.rows,
-            active_facility_id: facs.rows[0]?.id ?? null,
-          };
         }
-      }
 
-      return {
-        id: profile.id,
-        role: profile.role,
-        status: profile.status,
-        full_name: profile.full_name,
-        email: accountInfo.email,
-        phone: decryptedPhone,
-        preferred_locale: profile.preferred_locale,
-        mfa: {
-          enrolled: accountInfo.mfaEnrolled || (STAFF_ROLES.has(profile.role) && auth.claims.aal === 'aal2'),
-          aal: auth.claims.aal,
-        },
-        patient: patientSummary,
-        practitioner: practitionerSummary,
-        permissions: [...auth.permissions],
-      };
-    });
+        practitionerSummary = {
+          type: pr.practitioner_type,
+          license_number: pr.license_number,
+          license_status: pr.license_status,
+          specialty,
+          facilities,
+          active_facility_id: pr.active_facility_id ?? facilities[0]?.id ?? null,
+        };
+      }
+    }
+
+    return {
+      id: profile.id,
+      role: profile.role,
+      status: profile.status,
+      full_name: profile.full_name,
+      email: accountInfo.email ?? profile.email,
+      phone: decryptedPhone,
+      preferred_locale: profile.preferred_locale,
+      mfa: {
+        enrolled:
+          accountInfo.mfaEnrolled || (STAFF_ROLES.has(profile.role) && auth.claims.aal === 'aal2'),
+        aal: auth.claims.aal,
+      },
+      patient: patientSummary,
+      practitioner: practitionerSummary,
+      permissions: [...auth.permissions],
+    };
   }
 
   router.get('/me', async (_req, res, next) => {
@@ -151,29 +138,22 @@ export function meRoutes(deps: AppDeps): Router {
       };
 
       if (body.phone) {
-        await sbPort.requestPhoneChange(auth.userId, body.phone);
+        await deps.firebaseAdmin.requestPhoneChange(auth.userId, body.phone);
         res.status(202).json({ pending: 'phone_verification' });
         return;
       }
 
-      const pools = requirePools();
-      await withUserTx(pools, auth, async (tx) => {
-        const updates: Record<string, unknown> = {};
-        if (body.full_name !== undefined) updates.full_name = body.full_name;
-        if (body.preferred_locale !== undefined) updates.preferred_locale = body.preferred_locale;
+      const db = requireDb(deps);
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (body.full_name !== undefined) updates.full_name = body.full_name;
+      if (body.preferred_locale !== undefined) updates.preferred_locale = body.preferred_locale;
 
-        await tx
-          .updateTable('app.profiles')
-          .set(updates)
-          .where('id', '=', auth.userId)
-          .execute();
-
-        await writeAuditLog(tx, auth, {
-          action: 'PROFILE_UPDATED',
-          resourceType: 'profile',
-          resourceId: auth.userId,
-          metadata: { fields: Object.keys(updates) },
-        });
+      await db.collection(COLLECTIONS.users).doc(auth.userId).update(updates);
+      await writeAuditLog(db, auth, {
+        action: 'PROFILE_UPDATED',
+        resourceType: 'profile',
+        resourceId: auth.userId,
+        metadata: { fields: Object.keys(updates) },
       });
 
       await deps.authContext.invalidate(auth.userId);

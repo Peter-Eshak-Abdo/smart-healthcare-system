@@ -12,22 +12,27 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm -r lint
-      - run: pnpm -r typecheck
-      - run: pnpm -r test
-      - run: pnpm contracts:check
-      - name: Verify Compose & Production Env Contracts
-        run: docker compose -f infra/docker-compose.prod.yml config -q
-      - name: Apply Supabase Production Migrations
-        if: env.PROD_SUPABASE_DB_URL != ''
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint --workspaces
+      - run: npm run typecheck --workspaces
+      - run: npm run test --workspaces
+      - run: npm run contracts:check
+      - run: npm run build
+      - name: Deploy Firestore Rules, Indexes & Storage (Production)
+        if: env.FIREBASE_SERVICE_ACCOUNT_PROD != '' && env.FIREBASE_PROJECT_ID_PROD != ''
         env:
-          PROD_SUPABASE_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
-        run: npx supabase db push --db-url "$PROD_SUPABASE_DB_URL"
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_PROD }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-sa.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx --yes firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project "$FIREBASE_PROJECT_ID"
+          rm -f /tmp/firebase-sa.json
+      - name: Trigger Render Production Deploy
+        if: env.RENDER_DEPLOY_HOOK_PROD != ''
+        env:
+          RENDER_DEPLOY_HOOK_PROD: ${{ secrets.RENDER_DEPLOY_HOOK_PROD }}
+        run: curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_PROD"

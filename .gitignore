@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-.pnpm-store/
 
 # Environment & secrets (NEVER commit)
 .env
@@ -11,6 +10,8 @@ node_modules/
 *.p12
 *.jks
 *.keystore
+*firebase-adminsdk*.json
+service-account*.json
 
 # AI models & large artifacts
 ai-service/models/*.onnx
@@ -36,7 +37,7 @@ backend-api/coverage/
 # Contracts build
 packages/contracts/dist/
 
-# Flutter / Mobile
+# Flutter / Multi-platform app
 mobile-app/.dart_tool/
 mobile-app/.flutter-plugins
 mobile-app/.flutter-plugins-dependencies

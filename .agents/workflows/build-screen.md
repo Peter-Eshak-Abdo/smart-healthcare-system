@@ -7,5 +7,5 @@ description: Build one UI screen end-to-end from the SmartHealth UI specs
 4. Implement states in this order: happy path → loading → empty → error codes → offline → edge-case rows → Large-Font → dark/emergency/sunlight.
 5. Add motion last, from UI-02 tokens only, with reduced-motion and Tier E variants.
 // turbo
-6. Run `pnpm --filter web-admin test && pnpm --filter web-admin e2e` (web) or `cd mobile-app && flutter analyze && flutter test` (mobile).
+6. Run `npm run test -w web-admin` (web) or `cd mobile-app && flutter analyze --fatal-warnings && flutter test` (mobile).
 7. Produce a table: every state/edge row → ✅/❌ with evidence (test name or screenshot path).

@@ -11,8 +11,8 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { ProblemAlert } from '@/components/common/ProblemAlert';
 import { apiFetch } from '@/lib/api/client';
+import { getFirebaseIdToken } from '@/lib/firebase/client';
 import { formatCairoDateTime } from '@/lib/format/date';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
 
 type AuditPage = z.infer<typeof AdminAuditEventsResponseSchema>;
 type AuditIntegrity = z.infer<typeof AdminAuditIntegrityResponseSchema>;
@@ -43,10 +43,7 @@ export default function AdminAuditPage() {
   });
 
   const handleExportCsv = async () => {
-    const supabase = getSupabaseBrowser();
-    const token = supabase
-      ? (await supabase.auth.getSession()).data.session?.access_token
-      : undefined;
+    const token = await getFirebaseIdToken();
     const res = await fetch(`${API_BASE}/v1/admin/audit-events/export`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });

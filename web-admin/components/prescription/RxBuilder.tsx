@@ -16,7 +16,7 @@ import { OverrideDialog } from '@/components/prescription/OverrideDialog';
 import { SafetyAlertBanner } from '@/components/prescription/SafetyAlertBanner';
 import { apiFetch } from '@/lib/api/client';
 import { isApiErrorCode } from '@/lib/api/errors';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
+import { getFirebaseIdToken, syncFirebaseSessionCookie } from '@/lib/firebase/client';
 import { useRxBuilderStore, type DraftRxItem } from '@/stores/rx-builder.store';
 
 type RefDrugDto = z.infer<typeof RefDrugsResponseSchema>['data'][number];
@@ -180,19 +180,9 @@ export function RxBuilder({
     (!isUnavailable || draft.manualReviewAttested);
 
   const handleReauthSubmit = async () => {
-    const supabase = getSupabaseBrowser();
-    if (!supabase) return;
-    const factors = await supabase.auth.mfa.listFactors();
-    const totp = factors.data?.totp?.[0];
-    if (!totp) return;
-    const chal = await supabase.auth.mfa.challenge({ factorId: totp.id });
-    if (chal.error || !chal.data) return;
-    const ver = await supabase.auth.mfa.verify({
-      factorId: totp.id,
-      challengeId: chal.data.id,
-      code: reauthCode.trim(),
-    });
-    if (!ver.error) {
+    const refreshedToken = await getFirebaseIdToken(true);
+    if (refreshedToken) {
+      await syncFirebaseSessionCookie(refreshedToken);
       setReauthOpen(false);
       setReauthCode('');
       issueMutation.mutate();

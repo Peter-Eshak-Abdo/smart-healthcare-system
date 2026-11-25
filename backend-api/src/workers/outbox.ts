@@ -1,66 +1,63 @@
-import { sql } from 'kysely';
+import type { Firestore } from 'firebase-admin/firestore';
 import type { Logger } from 'pino';
-import type { DbPools } from '../db/pool.js';
-import { withSystemTx } from '../db/with-user-tx.js';
+import { COLLECTIONS } from '../firebase/firestore-types.js';
 import type { NotifierPort, NotificationDispatchItem } from '../integrations/notifier.js';
 
 export async function processOutboxBatch(
-  pools: DbPools,
+  db: Firestore,
   notifier: NotifierPort,
   logger: Logger,
 ): Promise<number> {
-  const pending = await withSystemTx(pools, async (tx) => {
-    const res = await sql<NotificationDispatchItem & { attempts: number }>`
-      select id, user_id, channel, template, payload, attempts
-        from app.notifications
-       where status = 'pending'
-       order by created_at asc
-       limit 50
-       for update skip locked
-    `.execute(tx);
-    return res.rows;
-  });
+  const snap = await db
+    .collection(COLLECTIONS.outboxEvents)
+    .where('status', '==', 'pending')
+    .orderBy('created_at', 'asc')
+    .limit(25)
+    .get();
 
-  for (const item of pending) {
+  for (const doc of snap.docs) {
+    const data = doc.data() as NotificationDispatchItem & { attempts: number };
     try {
-      await notifier.send(item);
-      await withSystemTx(pools, async (tx) => {
-        await sql`
-          update app.notifications
-             set status = 'sent',
-                 attempts = attempts + 1,
-                 sent_at = now()
-           where id = ${item.id}::uuid
-        `.execute(tx);
+      await notifier.send({
+        id: doc.id,
+        user_id: data.user_id,
+        channel: data.channel,
+        template: data.template,
+        payload: data.payload,
+      });
+      await doc.ref.update({
+        status: 'sent',
+        attempts: (data.attempts ?? 0) + 1,
+        sent_at: new Date().toISOString(),
       });
     } catch (err) {
+      const nextAttempts = (data.attempts ?? 0) + 1;
       logger.warn(
-        { notification_id: item.id, attempts: item.attempts + 1, err: err instanceof Error ? err.message : 'failed' },
+        {
+          notification_id: doc.id,
+          attempts: nextAttempts,
+          err: err instanceof Error ? err.message : 'failed',
+        },
         'Outbox delivery attempt failed',
       );
-      const nextStatus = item.attempts + 1 >= 5 ? 'failed' : 'pending';
-      await withSystemTx(pools, async (tx) => {
-        await sql`
-          update app.notifications
-             set status = ${nextStatus},
-                 attempts = attempts + 1
-           where id = ${item.id}::uuid
-        `.execute(tx);
+      await doc.ref.update({
+        status: nextAttempts >= 5 ? 'failed' : 'pending',
+        attempts: nextAttempts,
       });
     }
   }
 
-  return pending.length;
+  return snap.size;
 }
 
 export function startOutboxWorker(
-  pools: DbPools,
+  db: Firestore,
   notifier: NotifierPort,
   logger: Logger,
-  intervalMs = 5_000,
+  intervalMs = 10_000,
 ): { stop: () => void } {
   const timer = setInterval(() => {
-    void processOutboxBatch(pools, notifier, logger).catch((err) => {
+    void processOutboxBatch(db, notifier, logger).catch((err) => {
       logger.error({ err: err instanceof Error ? err.message : 'unknown' }, 'Outbox loop failed');
     });
   }, intervalMs);

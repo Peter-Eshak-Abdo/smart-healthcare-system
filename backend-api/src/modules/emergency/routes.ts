@@ -11,11 +11,18 @@ import {
   OfflineEmergencyEventsRequestSchema,
 } from '@smarthealth/contracts';
 import { Router } from 'express';
-import { sql } from 'kysely';
 import multer from 'multer';
 import type { AppDeps } from '../../app-deps.js';
 import type { AppEnv } from '../../config/env.js';
-import { withUserTx, type Tx } from '../../db/with-user-tx.js';
+import { matchFaceTemplates } from '../../firebase/biometric-match.js';
+import { enqueueOutboxNotification, requireDb } from '../../firebase/firestore-helpers.js';
+import {
+  COLLECTIONS,
+  type EmergencyContactDoc,
+  type EmergencySessionDoc,
+  type PatientDoc,
+  type UserDoc,
+} from '../../firebase/firestore-types.js';
 import { mapFaceAnalysisFailure } from '../../integrations/ai-client.js';
 import { requirePermission } from '../../middleware/authorize.js';
 import { idempotencyMiddleware } from '../../middleware/idempotency.js';
@@ -25,6 +32,7 @@ import { aad } from '../../security/crypto/field-cipher.js';
 import type { Ed25519KeyPair } from '../../security/crypto/keyring.js';
 import { calculateAge } from '../../shared/egyptian-id.js';
 import { AppError } from '../../shared/errors.js';
+import { loadCriticalInfo } from '../patients/shared.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -98,62 +106,128 @@ export function verifyEmergencyCardPayload(
 export function emergencyRoutes(deps: AppDeps): Router {
   const router = Router();
 
-  const requirePools = () => {
-    if (!deps.pools) {
-      throw new AppError('INTERNAL_ERROR', { detail: 'database_not_configured' });
-    }
-    return deps.pools;
-  };
+  async function buildClosedProfile(session: EmergencySessionDoc) {
+    const db = requireDb(deps);
+    const [patSnap, userSnap, crit, contactsSnap] = await Promise.all([
+      db.collection(COLLECTIONS.patients).doc(session.patient_id).get(),
+      db.collection(COLLECTIONS.users).doc(session.patient_id).get(),
+      loadCriticalInfo(db, deps, session.patient_id),
+      db
+        .collection(COLLECTIONS.emergencyContacts)
+        .where('patient_id', '==', session.patient_id)
+        .where('share_with_emergency', '==', true)
+        .limit(1)
+        .get(),
+    ]);
+
+    const pat = patSnap.data() as PatientDoc;
+    const user = userSnap.data() as UserDoc;
+
+    return EmergencyProfileResponseSchema.strict().parse({
+      session: {
+        id: session.id,
+        expires_at: session.expires_at,
+        low_confidence: session.low_confidence,
+        method: session.method,
+      },
+      patient: {
+        full_name: user.full_name,
+        age: calculateAge(pat.date_of_birth),
+        sex: pat.sex,
+        mrn_last4: pat.mrn_last4,
+      },
+      blood_type: {
+        value: crit.blood_type.value,
+        verified: crit.blood_type.source === 'clinician_confirmed',
+      },
+      allergies: crit.allergies.map((a) => ({
+        name: a.allergen?.name.en ?? a.free_text ?? 'Allergy',
+        severity: a.severity,
+        verified: a.source === 'clinician_confirmed',
+      })),
+      chronic_conditions: crit.chronic_conditions.map((c) => ({
+        name: c.name.en,
+        since_year: null,
+      })),
+      current_medications: crit.current_medications.map((m) => ({
+        name: m.drug.display,
+        dose_text: m.dose_text,
+      })),
+      has_shared_contacts: !contactsSnap.empty,
+      generated_at: new Date().toISOString(),
+    });
+  }
 
   async function openSessionAndPreview(
-    tx: Tx,
+    auth: NonNullable<Express.Locals['auth']>,
     input: {
       patientId: string;
       method: 'face' | 'emergency_card_qr' | 'manual_search';
       matchScore: number | null;
-      matchMargin: number | null;
       lowConfidence: boolean;
-      confirmed: boolean;
       reasonCode: string;
       incidentRef?: string | undefined;
-      lat?: number | null | undefined;
-      lng?: number | null | undefined;
-      idemKey?: string | undefined;
     },
   ) {
-    const sRes = await sql<{
-      id: string;
-      expires_at: string;
-      low_confidence: boolean;
-    }>`
-      select id, expires_at::text, low_confidence
-        from private.open_emergency_session(
-          ${input.patientId}::uuid,
-          ${input.method}::app.emergency_id_method,
-          ${input.matchScore},
-          ${input.matchMargin},
-          ${input.lowConfidence},
-          ${input.confirmed},
-          ${input.reasonCode},
-          ${input.incidentRef ?? null},
-          ${input.lat ?? null},
-          ${input.lng ?? null},
-          ${input.idemKey ?? null}::uuid
-        )
-    `.execute(tx);
-    const session = sRes.rows[0]!;
+    const db = requireDb(deps);
+    const patSnap = await db.collection(COLLECTIONS.patients).doc(input.patientId).get();
+    if (!patSnap.exists) throw new AppError('RESOURCE_NOT_FOUND');
+    const pat = patSnap.data() as PatientDoc;
 
-    const profJsonRes = await sql<{ prof: unknown }>`
-      select private.get_emergency_profile(${session.id}::uuid) as prof
-    `.execute(tx);
-    const parsedProf = EmergencyProfileResponseSchema.strict().parse(profJsonRes.rows[0]!.prof);
+    const sessionId = randomUUID();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 60 * 60_000).toISOString();
+    const band =
+      input.matchScore === null
+        ? 'manual'
+        : input.matchScore >= deps.env.FACE_MATCH_ACCEPT
+          ? 'high'
+          : 'possible';
 
+    const sessionDoc: EmergencySessionDoc = {
+      id: sessionId,
+      paramedic_id: auth.userId,
+      paramedic_name: auth.fullName,
+      patient_id: input.patientId,
+      patient_mrn_last4: pat.mrn_last4,
+      method: input.method,
+      reason_code: input.reasonCode,
+      incident_ref: input.incidentRef ?? null,
+      low_confidence: input.lowConfidence,
+      match_score_band: band,
+      started_at: now.toISOString(),
+      expires_at: expiresAt,
+      closed_at: null,
+      review_status: 'pending',
+      review_note: null,
+      reviewed_by: null,
+      reviewed_at: null,
+    };
+
+    await db.collection(COLLECTIONS.emergencySessions).doc(sessionId).set(sessionDoc);
+    await writeAuditLog(db, auth, {
+      action: 'EMERGENCY_SESSION_OPENED',
+      resourceType: 'emergency_session',
+      resourceId: sessionId,
+      patientId: input.patientId,
+      patientMrnLast4: pat.mrn_last4,
+      metadata: { method: input.method, reason_code: input.reasonCode },
+    });
+
+    await enqueueOutboxNotification(db, {
+      user_id: input.patientId,
+      channel: 'push',
+      template: 'emergency_break_glass',
+      payload: { method: input.method },
+    });
+
+    const parsedProf = await buildClosedProfile(sessionDoc);
     return {
       result: 'match' as const,
       session: {
-        id: session.id,
-        expires_at: new Date(session.expires_at).toISOString(),
-        low_confidence: session.low_confidence,
+        id: sessionDoc.id,
+        expires_at: sessionDoc.expires_at,
+        low_confidence: sessionDoc.low_confidence,
       },
       patient_preview: parsedProf.patient,
     };
@@ -173,13 +247,6 @@ export function emergencyRoutes(deps: AppDeps): Router {
         const reasonCode = EmergencyReasonCodeSchema.parse(req.body.reason_code);
         const incidentRef =
           typeof req.body.incident_ref === 'string' ? req.body.incident_ref.slice(0, 64) : undefined;
-        let lat: number | null = null;
-        let lng: number | null = null;
-        if (typeof req.body.location === 'string' && req.body.location.trim()) {
-          const parsedLoc = JSON.parse(req.body.location) as { lat?: number; lng?: number };
-          lat = parsedLoc.lat ?? null;
-          lng = parsedLoc.lng ?? null;
-        }
         if (files.length === 0) {
           throw new AppError('VALIDATION_FAILED', { detail: 'frames_required' });
         }
@@ -201,110 +268,73 @@ export function emergencyRoutes(deps: AppDeps): Router {
           throw mapFaceAnalysisFailure(analysis);
         }
 
-        const pools = requirePools();
-        const vecLiteral = `[${analysis.template.vector.join(',')}]`;
+        const db = requireDb(deps);
+        const top = await matchFaceTemplates(db, analysis.template.vector, {
+          keyVersion: analysis.transform_key_version,
+          limit: 5,
+        });
 
-        const outcome = await withUserTx(
-          pools,
-          auth,
-          async (tx) => {
-            const topRes = await sql<{ patient_id: string; similarity: number }>`
-              select patient_id, similarity
-                from private.match_face(
-                  ${vecLiteral}::extensions.vector,
-                  ${analysis.model_version},
-                  ${analysis.transform_key_version},
-                  5
-                )
-            `.execute(tx);
+        const first = top[0];
+        const second = top[1];
+        const margin =
+          first !== undefined && second !== undefined ? first.score - second.score : 1.0;
+        const decision = decideMatch(first?.score, margin, deps.env);
 
-            const top = topRes.rows;
-            const first = top[0];
-            const second = top[1];
-            const margin =
-              first !== undefined && second !== undefined
-                ? first.similarity - second.similarity
-                : 1.0;
-            const decision = decideMatch(first?.similarity, margin, deps.env);
+        await writeAuditLog(db, auth, {
+          action: 'FACE_IDENTIFY_ATTEMPT',
+          resourceType: 'emergency_identify',
+          metadata: { result: decision, liveness_passed: true },
+        });
 
-            await sql`
-              insert into biometric.attempts (actor_id, purpose, result, top_score, second_score, liveness_score, model_version)
-              values (
-                ${auth.userId}::uuid,
-                'identify',
-                ${decision},
-                ${first?.similarity ?? null},
-                ${second?.similarity ?? null},
-                ${analysis.liveness.score},
-                ${analysis.model_version}
-              )
-            `.execute(tx);
+        if (decision === 'no_match' || !first) {
+          res.status(200).json({
+            result: 'no_match' as const,
+            fallbacks: ['emergency_card_qr', 'national_id_search'] as const,
+          });
+          return;
+        }
 
-            await writeAuditLog(tx, auth, {
-              action: 'FACE_IDENTIFY_ATTEMPT',
-              resourceType: 'emergency_identify',
-              metadata: { result: decision, liveness_passed: true },
+        if (decision === 'possible_match') {
+          const candidates = [];
+          for (const cand of top.slice(0, 2)) {
+            const pSnap = await db.collection(COLLECTIONS.patients).doc(cand.patient_id).get();
+            if (!pSnap.exists) continue;
+            const p = pSnap.data() as PatientDoc;
+            const candToken = randomUUID();
+            await deps.redis.set(
+              `emerg:cand:${candToken}`,
+              JSON.stringify({
+                paramedicId: auth.userId,
+                patientId: cand.patient_id,
+                similarity: cand.score,
+              }),
+              'EX',
+              120,
+            );
+            candidates.push({
+              candidate_token: candToken,
+              sex: p.sex,
+              age_band: ageBandOf(p.date_of_birth),
             });
+          }
 
-            if (decision === 'no_match' || !first) {
-              return {
-                result: 'no_match' as const,
-                fallbacks: ['emergency_card_qr', 'national_id_search'] as const,
-              };
-            }
+          res.status(200).json({
+            result: 'possible_match' as const,
+            candidates,
+            candidate_tokens_expire_in: 120,
+          });
+          return;
+        }
 
-            if (decision === 'possible_match') {
-              const candidates = [];
-              for (const cand of top.slice(0, 2)) {
-                const cRow = await sql<{ sex: 'male' | 'female'; date_of_birth: string }>`
-                  select sex, date_of_birth::text from app.patients where id = ${cand.patient_id}::uuid
-                `.execute(tx);
-                const info = cRow.rows[0];
-                if (!info) continue;
-                const candToken = randomUUID();
-                await deps.redis.set(
-                  `emerg:cand:${candToken}`,
-                  JSON.stringify({
-                    paramedicId: auth.userId,
-                    patientId: cand.patient_id,
-                    similarity: cand.similarity,
-                    margin,
-                  }),
-                  'EX',
-                  120,
-                );
-                candidates.push({
-                  candidate_token: candToken,
-                  sex: info.sex,
-                  age_band: ageBandOf(info.date_of_birth),
-                });
-              }
-
-              return {
-                result: 'possible_match' as const,
-                candidates,
-                candidate_tokens_expire_in: 120,
-              };
-            }
-
-            return openSessionAndPreview(tx, {
-              patientId: first.patient_id,
-              method: 'face',
-              matchScore: first.similarity,
-              matchMargin: margin,
-              lowConfidence: false,
-              confirmed: false,
-              reasonCode,
-              incidentRef,
-              lat,
-              lng,
-              idemKey: res.locals.idempotencyKey,
-            });
-          },
-          { pool: 'emergency' },
-        );
-
-        res.status(200).json(outcome);
+        const matched = await openSessionAndPreview(auth, {
+          patientId: first.patient_id,
+          method: 'face',
+          matchScore: first.score,
+          lowConfidence: false,
+          reasonCode,
+          incidentRef,
+        });
+        res.status(200).json(matched);
       } catch (err) {
         if (err instanceof AppError && err.code === 'AI_SERVICE_UNAVAILABLE') {
           next(
@@ -316,9 +346,7 @@ export function emergencyRoutes(deps: AppDeps): Router {
         }
         next(err);
       } finally {
-        for (const f of files) {
-          f.buffer.fill(0);
-        }
+        for (const f of files) f.buffer.fill(0);
       }
     },
   );
@@ -335,41 +363,28 @@ export function emergencyRoutes(deps: AppDeps): Router {
           reason_code: string;
           incident_ref?: string;
         };
-
         const raw = await deps.redis.get(`emerg:cand:${body.candidate_token}`);
-        if (!raw) {
-          throw new AppError('EMERG_SESSION_EXPIRED', { detail: 'candidate_token_expired' });
-        }
+        if (!raw) throw new AppError('EMERG_NO_MATCH', { detail: 'candidate_token_expired' });
+        await deps.redis.del(`emerg:cand:${body.candidate_token}`);
+
         const cand = JSON.parse(raw) as {
           paramedicId: string;
           patientId: string;
           similarity: number;
-          margin: number;
         };
         if (cand.paramedicId !== auth.userId) {
           throw new AppError('RBAC_FORBIDDEN');
         }
-        await deps.redis.del(`emerg:cand:${body.candidate_token}`);
 
-        const pools = requirePools();
-        const result = await withUserTx(
-          pools,
-          auth,
-          async (tx) =>
-            openSessionAndPreview(tx, {
-              patientId: cand.patientId,
-              method: 'face',
-              matchScore: cand.similarity,
-              matchMargin: cand.margin,
-              lowConfidence: true,
-              confirmed: true,
-              reasonCode: body.reason_code,
-              incidentRef: body.incident_ref,
-            }),
-          { pool: 'emergency' },
-        );
-
-        res.status(200).json(result);
+        const matched = await openSessionAndPreview(auth, {
+          patientId: cand.patientId,
+          method: 'face',
+          matchScore: cand.similarity,
+          lowConfidence: true,
+          reasonCode: body.reason_code,
+          incidentRef: body.incident_ref,
+        });
+        res.status(200).json(matched);
       } catch (err) {
         next(err);
       }
@@ -379,7 +394,6 @@ export function emergencyRoutes(deps: AppDeps): Router {
   router.post(
     '/emergency/identify/card',
     requirePermission('emergency:identify'),
-    idempotencyMiddleware(deps.redis, { required: true }),
     validate({ body: EmergencyIdentifyCardRequestSchema }),
     async (_req, res, next) => {
       try {
@@ -394,45 +408,32 @@ export function emergencyRoutes(deps: AppDeps): Router {
           deps.keyring.emergencyCardPublicKeys,
         );
         if (!verified) {
-          throw new AppError('RX_SIGNATURE_INVALID', { detail: 'card_signature_invalid' });
+          throw new AppError('VALIDATION_FAILED', { statusOverride: 422, detail: 'invalid_emergency_card' });
         }
 
-        const pools = requirePools();
-        const outcome = await withUserTx(
-          pools,
-          auth,
-          async (tx) => {
-            const pRow = await sql<{ id: string }>`
-              select id from app.patients where mrn = ${verified.mrn}
-            `.execute(tx);
-            const patientId = pRow.rows[0]?.id;
-            if (!patientId) {
-              return {
-                result: 'no_match' as const,
-                fallbacks: ['national_id_search'] as const,
-              };
-            }
-
-            const opened = await openSessionAndPreview(tx, {
-              patientId,
-              method: 'emergency_card_qr',
-              matchScore: null,
-              matchMargin: null,
-              lowConfidence: false,
-              confirmed: false,
-              reasonCode: body.reason_code,
-              incidentRef: body.incident_ref,
-              idemKey: res.locals.idempotencyKey,
-            });
-            return {
-              ...opened,
-              ...(verified.expired ? { card_expired: true } : {}),
-            };
-          },
-          { pool: 'emergency' },
-        );
-
-        res.status(200).json(outcome);
+        const db = requireDb(deps);
+        const snap = await db
+          .collection(COLLECTIONS.patients)
+          .where('mrn', '==', verified.mrn)
+          .limit(1)
+          .get();
+        if (snap.empty) {
+          res.status(200).json({
+            result: 'no_match' as const,
+            fallbacks: ['national_id_search'] as const,
+          });
+          return;
+        }
+        const patient = snap.docs[0]!.data() as PatientDoc;
+        const matched = await openSessionAndPreview(auth, {
+          patientId: patient.id,
+          method: 'emergency_card_qr',
+          matchScore: null,
+          lowConfidence: false,
+          reasonCode: body.reason_code,
+          incidentRef: body.incident_ref,
+        });
+        res.status(200).json({ ...matched, card_expired: verified.expired });
       } catch (err) {
         next(err);
       }
@@ -453,46 +454,50 @@ export function emergencyRoutes(deps: AppDeps): Router {
           reason_code: string;
           incident_ref?: string;
         };
-        const bidx = deps.fieldCipher.blindIndex(
-          `${body.id_document_type}:${body.id_document_number}`,
-          'id_document',
-        );
-        const pools = requirePools();
+        const bidx = deps.fieldCipher
+          .blindIndex(`${body.id_document_type}:${body.id_document_number}`, 'id_document')
+          .toString('hex');
 
-        const outcome = await withUserTx(
-          pools,
-          auth,
-          async (tx) => {
-            const pRow = await sql<{ id: string }>`
-              select id from app.patients where id_document_bidx = ${bidx}
-            `.execute(tx);
-            const patientId = pRow.rows[0]?.id;
-            if (!patientId) {
-              return {
-                result: 'no_match' as const,
-                fallbacks: ['emergency_card_qr'] as const,
-              };
-            }
-            return openSessionAndPreview(tx, {
-              patientId,
-              method: 'manual_search',
-              matchScore: null,
-              matchMargin: null,
-              lowConfidence: false,
-              confirmed: false,
-              reasonCode: body.reason_code,
-              incidentRef: body.incident_ref,
-            });
-          },
-          { pool: 'emergency' },
-        );
-
-        res.status(200).json(outcome);
+        const db = requireDb(deps);
+        const snap = await db
+          .collection(COLLECTIONS.patients)
+          .where('id_document_blind_index', '==', bidx)
+          .limit(1)
+          .get();
+        if (snap.empty) {
+          res.status(200).json({
+            result: 'no_match' as const,
+            fallbacks: ['emergency_card_qr'] as const,
+          });
+          return;
+        }
+        const patient = snap.docs[0]!.data() as PatientDoc;
+        const matched = await openSessionAndPreview(auth, {
+          patientId: patient.id,
+          method: 'manual_search',
+          matchScore: null,
+          lowConfidence: false,
+          reasonCode: body.reason_code,
+          incidentRef: body.incident_ref,
+        });
+        res.status(200).json(matched);
       } catch (err) {
         next(err);
       }
     },
   );
+
+  async function requireActiveSession(sessionId: string, paramedicId: string): Promise<EmergencySessionDoc> {
+    const db = requireDb(deps);
+    const snap = await db.collection(COLLECTIONS.emergencySessions).doc(sessionId).get();
+    if (!snap.exists) throw new AppError('RESOURCE_NOT_FOUND');
+    const session = snap.data() as EmergencySessionDoc;
+    if (session.paramedic_id !== paramedicId) throw new AppError('RESOURCE_NOT_FOUND');
+    if (session.closed_at || new Date(session.expires_at).getTime() <= Date.now()) {
+      throw new AppError('EMERG_SESSION_EXPIRED');
+    }
+    return session;
+  }
 
   router.get(
     '/emergency/sessions/:sessionId/profile',
@@ -502,27 +507,16 @@ export function emergencyRoutes(deps: AppDeps): Router {
       try {
         const auth = res.locals.auth!;
         const { sessionId } = res.locals.validated!.params as { sessionId: string };
-        const pools = requirePools();
+        const session = await requireActiveSession(sessionId, auth.userId);
+        const profile = await buildClosedProfile(session);
 
-        const profile = await withUserTx(
-          pools,
-          auth,
-          async (tx) => {
-            const profRes = await sql<{ prof: unknown }>`
-              select private.get_emergency_profile(${sessionId}::uuid) as prof
-            `.execute(tx);
-            const strictProfile = EmergencyProfileResponseSchema.strict().parse(
-              profRes.rows[0]!.prof,
-            );
-            await writeAuditLog(tx, auth, {
-              action: 'EMERGENCY_PROFILE_READ',
-              resourceType: 'emergency_session',
-              resourceId: sessionId,
-            });
-            return strictProfile;
-          },
-          { pool: 'emergency' },
-        );
+        await writeAuditLog(requireDb(deps), auth, {
+          action: 'EMERGENCY_PROFILE_READ',
+          resourceType: 'emergency_session',
+          resourceId: sessionId,
+          patientId: session.patient_id,
+          patientMrnLast4: session.patient_mrn_last4,
+        });
 
         res.status(200).json(profile);
       } catch (err) {
@@ -539,49 +533,34 @@ export function emergencyRoutes(deps: AppDeps): Router {
       try {
         const auth = res.locals.auth!;
         const { sessionId } = res.locals.validated!.params as { sessionId: string };
-        const pools = requirePools();
+        const session = await requireActiveSession(sessionId, auth.userId);
+        const db = requireDb(deps);
 
-        const contacts = await withUserTx(
-          pools,
-          auth,
-          async (tx) => {
-            const rows = await sql<{
-              id: string;
-              full_name_enc: string;
-              relationship: string;
-              phone_enc: string;
-              priority: number;
-            }>`
-              select ec.id, c.full_name_enc, c.relationship, c.phone_enc, c.priority
-                from private.get_emergency_contacts(${sessionId}::uuid) c
-                join app.emergency_sessions es on es.id = ${sessionId}::uuid
-                join app.emergency_contacts ec
-                  on ec.patient_id = es.patient_id
-                 and ec.full_name_enc = c.full_name_enc
-                 and ec.deleted_at is null
-            `.execute(tx);
+        const snap = await db
+          .collection(COLLECTIONS.emergencyContacts)
+          .where('patient_id', '==', session.patient_id)
+          .where('share_with_emergency', '==', true)
+          .get();
 
-            await writeAuditLog(tx, auth, {
-              action: 'EMERGENCY_CONTACTS_READ',
-              resourceType: 'emergency_session',
-              resourceId: sessionId,
-            });
+        if (snap.empty) {
+          throw new AppError('EMERG_CONTACTS_NOT_SHARED');
+        }
 
-            return rows.rows.map((r) => ({
-              full_name: deps.fieldCipher.decrypt(
-                r.full_name_enc,
-                aad('emergency_contacts', 'full_name_enc', r.id),
-              ),
-              relationship: r.relationship,
-              phone: deps.fieldCipher.decrypt(
-                r.phone_enc,
-                aad('emergency_contacts', 'phone_enc', r.id),
-              ),
-              priority: r.priority,
-            }));
-          },
-          { pool: 'emergency' },
-        );
+        const contacts = snap.docs
+          .map((d) => d.data() as EmergencyContactDoc)
+          .sort((a, b) => a.priority - b.priority)
+          .map((c) => ({
+            full_name: deps.fieldCipher.decrypt(
+              c.full_name_enc,
+              aad('emergency_contacts', 'full_name_enc', c.id),
+            ),
+            relationship: c.relationship,
+            phone: deps.fieldCipher.decrypt(
+              c.phone_enc,
+              aad('emergency_contacts', 'phone_enc', c.id),
+            ),
+            priority: c.priority,
+          }));
 
         res.status(200).json({ data: contacts });
       } catch (err) {
@@ -598,23 +577,13 @@ export function emergencyRoutes(deps: AppDeps): Router {
       try {
         const auth = res.locals.auth!;
         const { sessionId } = res.locals.validated!.params as { sessionId: string };
-        const { reason } = res.locals.validated!.body as { reason: string };
-        const pools = requirePools();
-
-        const extended = await withUserTx(
-          pools,
-          auth,
-          async (tx) => {
-            const row = await sql<{ expires_at: string }>`
-              select expires_at::text
-                from private.extend_emergency_session(${sessionId}::uuid, ${reason})
-            `.execute(tx);
-            return new Date(row.rows[0]!.expires_at).toISOString();
-          },
-          { pool: 'emergency' },
-        );
-
-        res.status(200).json({ expires_at: extended });
+        const session = await requireActiveSession(sessionId, auth.userId);
+        const newExpires = new Date(Date.now() + 60 * 60_000).toISOString();
+        const db = requireDb(deps);
+        await db.collection(COLLECTIONS.emergencySessions).doc(session.id).update({
+          expires_at: newExpires,
+        });
+        res.status(200).json({ expires_at: newExpires });
       } catch (err) {
         next(err);
       }
@@ -629,29 +598,12 @@ export function emergencyRoutes(deps: AppDeps): Router {
       try {
         const auth = res.locals.auth!;
         const { sessionId } = res.locals.validated!.params as { sessionId: string };
-        const pools = requirePools();
-
-        await withUserTx(
-          pools,
-          auth,
-          async (tx) => {
-            await tx
-              .updateTable('app.emergency_sessions')
-              .set({ status: 'closed', closed_at: sql`now()` })
-              .where('id', '=', sessionId)
-              .where('paramedic_id', '=', auth.userId)
-              .execute();
-
-            await writeAuditLog(tx, auth, {
-              action: 'EMERGENCY_SESSION_CLOSED',
-              resourceType: 'emergency_session',
-              resourceId: sessionId,
-            });
-          },
-          { pool: 'emergency' },
-        );
-
-        res.status(204).send();
+        const session = await requireActiveSession(sessionId, auth.userId);
+        const db = requireDb(deps);
+        await db.collection(COLLECTIONS.emergencySessions).doc(session.id).update({
+          closed_at: new Date().toISOString(),
+        });
+        res.status(204).end();
       } catch (err) {
         next(err);
       }
@@ -665,34 +617,16 @@ export function emergencyRoutes(deps: AppDeps): Router {
     async (_req, res, next) => {
       try {
         const auth = res.locals.auth!;
-        const { events } = res.locals.validated!.body as {
-          events: Array<{
-            event_id: string;
-            type: 'offline_card_view';
-            card_mrn: string;
-            card_iat: number;
-            occurred_at: string;
-            device_signature_b64: string;
-          }>;
-        };
-        const pools = requirePools();
-
-        await withUserTx(pools, auth, async (tx) => {
-          for (const ev of events) {
-            await writeAuditLog(tx, auth, {
-              action: 'OFFLINE_EMERGENCY_CARD_VIEWED',
-              resourceType: 'emergency_card',
-              resourceId: ev.event_id,
-              metadata: {
-                mrn_last4: ev.card_mrn.slice(-4),
-                card_iat: ev.card_iat,
-                occurred_at: ev.occurred_at,
-              },
-            });
-          }
-        });
-
-        res.status(202).json({ accepted: events.length, rejected: 0 });
+        const body = res.locals.validated!.body as { events: Array<{ event_id: string }> };
+        const db = requireDb(deps);
+        for (const ev of body.events) {
+          await writeAuditLog(db, auth, {
+            action: 'OFFLINE_CARD_VIEWED',
+            resourceType: 'emergency_card',
+            resourceId: ev.event_id,
+          });
+        }
+        res.status(202).json({ accepted: body.events.length, rejected: 0 });
       } catch (err) {
         next(err);
       }

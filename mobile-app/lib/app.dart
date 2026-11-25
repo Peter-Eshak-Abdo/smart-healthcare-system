@@ -136,12 +136,25 @@ class _SmartHealthAppState extends ConsumerState<SmartHealthApp>
       theme: AppTheme.build(themeMode, largeFont: largeFont),
       routerConfig: router,
       builder: (BuildContext ctx, Widget? child) {
-        if (!_privacyBlur || child == null) {
-          return child ?? const SizedBox.shrink();
+        final Widget content = LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            if (constraints.maxWidth <= 960 || child == null) {
+              return child ?? const SizedBox.shrink();
+            }
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: child,
+              ),
+            );
+          },
+        );
+        if (!_privacyBlur) {
+          return content;
         }
         return Stack(
           children: <Widget>[
-            child,
+            content,
             Positioned.fill(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),

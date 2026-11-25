@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:screen_brightness/screen_brightness.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../../../core/platform/platform_services.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/sh_colors.dart';
 import '../../../core/widgets/medical_id_card_3d.dart';
@@ -30,18 +29,12 @@ class _OfflineEmergencyCardScreenState
   }
 
   Future<void> _initDisplay() async {
-    try {
-      await WakelockPlus.enable();
-      await ScreenBrightness().setApplicationScreenBrightness(1.0);
-    } catch (_) {
-      // Desktop/test environments without screen control ignore safely.
-    }
+    await PlatformServices.enableEmergencyDisplay();
   }
 
   @override
   void dispose() {
-    WakelockPlus.disable().catchError((_) {});
-    ScreenBrightness().resetApplicationScreenBrightness().catchError((_) {});
+    PlatformServices.disableEmergencyDisplay();
     super.dispose();
   }
 

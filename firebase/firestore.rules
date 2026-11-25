@@ -1,0 +1,523 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // SmartHealth Zero-Trust Security Architecture — Assumed Data Model
+    // =========================================================================
+    //
+    // Architecture invariant:
+    //   All domain writes, Tier-3 AES-256-GCM field encryption (*_enc), Ed25519
+    //   prescription signing, atomic pharmacy dispensing locks, break-glass
+    //   emergency sessions, and SHA-256 hash-chained audit logs (system_logs)
+    //   are executed strictly server-side by `backend-api` via `firebase-admin`
+    //   (Admin SDK bypasses security rules).
+    //
+    // Firebase Auth Custom Claims (set exclusively by `backend-api` / Admin SDK):
+    //   - role:          'patient' | 'doctor' | 'pharmacist' | 'paramedic' | 'admin'
+    //   - status:        'active' | 'pending_verification' | 'suspended' | 'deactivated'
+    //   - licenseStatus: 'verified' | 'pending' | 'suspended' | 'revoked' | 'expired' (clinical staff)
+    //   - facilityId:    string (optional active facility UUID)
+    //
+    // Collections:
+    //
+    // 1. users/{userId}
+    //    Document ID: Firebase Auth UID (UUID)
+    //    Access: Active owner `get` only; `list` and all client writes denied.
+    //    Fields:
+    //      - uid: string (required, immutable, == userId, 1..128 chars)
+    //      - role: string (required, immutable by client, enum app_role)
+    //      - status: string (required, immutable by client, enum account_status)
+    //      - session_epoch: int (required, >= 1, immutable by client)
+    //      - full_name: string (required, 2..120 chars)
+    //      - email: string (optional, valid email, <= 254 chars)
+    //      - phone: string (optional, 6..24 chars)
+    //      - preferred_locale: string (required, 'ar' | 'en')
+    //      - created_at: timestamp (required, immutable)
+    //      - updated_at: timestamp (required)
+    //
+    // 2. patients/{patientId}
+    //    Document ID: Firebase Auth UID (UUID)
+    //    Access: Active patient owner `get` only; `list` and all client writes denied.
+    //    Fields:
+    //      - uid: string (required, immutable, == patientId, 1..128 chars)
+    //      - mrn: string (required, immutable, 4..64 chars)
+    //      - national_id_bidx: string (optional, HMAC blind index, <= 128 chars)
+    //      - national_id_enc: string (optional, AES-256-GCM ciphertext, <= 2048 chars)
+    //      - blood_type: string (required, enum blood_type)
+    //      - sex: string (required, enum sex)
+    //      - onboarded: bool (required)
+    //      - is_minor: bool (required)
+    //      - created_at: timestamp (required, immutable)
+    //      - updated_at: timestamp (required)
+    //
+    // 3. doctors/{id}, pharmacists/{id}, paramedics/{id}, practitioners/{id}
+    //    Document ID: Firebase Auth UID (UUID)
+    //    Access: Active role-matched owner `get` only; `list` and all client writes denied.
+    //    Fields:
+    //      - uid: string (required, immutable, == id, 1..128 chars)
+    //      - practitioner_type: string (required, 'doctor' | 'pharmacist' | 'paramedic')
+    //      - license_number: string (required, 2..64 chars)
+    //      - license_status: string (required, enum license_status)
+    //      - license_expires_at: timestamp (optional)
+    //      - specialty_code: string (optional, 1..32 chars)
+    //      - facility_ids: list<string> (optional, max 20 items)
+    //      - created_at: timestamp (required, immutable)
+    //      - updated_at: timestamp (required)
+    //
+    // 4. Reference Catalogs (read-only for active signed-in users):
+    //    - facilities/{id}: hospital/clinic/pharmacy/ambulance_service metadata
+    //    - drug_reference/{id}: canonical medication catalog
+    //    - drug_interactions/{id}: deterministic DDI rules (DDInter 2.0 / curated)
+    //    - icd10_reference/{id}: ICD-10 diagnosis codes
+    //    - allergens_reference/{id}: coded allergens & cross-reactivity classes
+    //    Access: Active authenticated `get` & `list`; all client writes denied.
+    //
+    // 5. prescriptions/{id} & emergency_contacts/{id}
+    //    Document ID: UUID
+    //    Access: Active patient owner `get` only (resource.data.patient_id == uid);
+    //            `list` and all client writes denied.
+    //    prescriptions fields:
+    //      - id: string (required, immutable, 1..128 chars)
+    //      - rx_number: string (required, immutable, 4..64 chars)
+    //      - patient_id: string (required, immutable, 1..128 chars)
+    //      - doctor_id: string (required, immutable, 1..128 chars)
+    //      - facility_id: string (required, immutable, 1..128 chars)
+    //      - status: string (required, enum prescription_status)
+    //      - signature_b64: string (required, immutable, 32..512 chars)
+    //      - issued_at: timestamp (required, immutable)
+    //      - expires_at: timestamp (required, immutable)
+    //    emergency_contacts fields:
+    //      - id: string (required, immutable, 1..128 chars)
+    //      - patient_id: string (required, immutable, 1..128 chars)
+    //      - name: string (required, 1..120 chars)
+    //      - relationship: string (required, 1..60 chars)
+    //      - phone_enc: string (optional, AES-256-GCM ciphertext, <= 1024 chars)
+    //      - priority: int (required, 1..10)
+    //      - created_at: timestamp (required, immutable)
+    //      - updated_at: timestamp (required)
+    //
+    // 6. Strictly Backend-Mediated Collections (ALL client reads & writes denied):
+    //    - medical_records/{id}       (Tier-3 encrypted clinical records)
+    //    - encounters/{id}            (Clinical visits & encrypted notes)
+    //    - prescription_items/{id}    (Signed prescription lines & quantities)
+    //    - dispensations/{id}         (Atomic dispensing records)
+    //    - biometric_templates/{id}   (Orthogonal 512-d face templates — NEVER client-readable)
+    //    - access_grants/{id}         (Patient -> practitioner authorization)
+    //    - emergency_sessions/{id}    (Break-glass emergency sessions)
+    //    - idempotency_keys/{id}      (Request idempotency locks)
+    //    - outbox_events/{id}         (Transactional outbox queue)
+    //    - security_flags/{id}        (Anomaly & abuse flags)
+    //    - pending_approvals/{id}     (Two-person admin approvals)
+    //    - share_codes/{id}           (Short-lived HMAC share codes)
+    //    - verify_sessions/{id}       (Pharmacy verification context)
+    //    - dispense_leases/{id}       (Soft 5-minute pharmacy preparation leases)
+    //    - assistant_sessions/{id}    (AI triage & encrypted chat sessions)
+    //    - notifications/{id}         (Notification dispatch outbox)
+    //    - system_logs/{id}           (Immutable SHA-256 hash-chained audit trail)
+    //
+    // =========================================================================
+
+    // =========================================================================
+    // Helper Functions
+    // =========================================================================
+
+    function isAuthenticated() {
+      return request.auth != null
+        && request.auth.uid is string
+        && request.auth.uid.size() > 0;
+    }
+
+    function isNonAnonymous() {
+      return !('firebase' in request.auth.token)
+        || !('sign_in_provider' in request.auth.token.firebase)
+        || request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // Require email_verified == true whenever email or email_verified is present
+    // in the token; blocks unverified email accounts while supporting custom/phone tokens.
+    function isEmailVerified() {
+      return (!('email' in request.auth.token)
+          || ('email_verified' in request.auth.token && request.auth.token.email_verified == true))
+        && (!('email_verified' in request.auth.token)
+          || request.auth.token.email_verified == true);
+    }
+
+    function hasValidActiveAccount() {
+      return isAuthenticated()
+        && isNonAnonymous()
+        && isEmailVerified()
+        && 'role' in request.auth.token
+        && request.auth.token.role is string
+        && request.auth.token.role in ['patient', 'doctor', 'pharmacist', 'paramedic', 'admin']
+        && 'status' in request.auth.token
+        && request.auth.token.status == 'active';
+    }
+
+    function hasRole(role) {
+      return hasValidActiveAccount() && request.auth.token.role == role;
+    }
+
+    function isClinicalStaff() {
+      return hasValidActiveAccount()
+        && request.auth.token.role in ['doctor', 'pharmacist', 'paramedic'];
+    }
+
+    function hasVerifiedLicense() {
+      return isClinicalStaff()
+        && 'licenseStatus' in request.auth.token
+        && request.auth.token.licenseStatus == 'verified';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isActiveOwner(userId) {
+      return hasValidActiveAccount() && isOwner(userId);
+    }
+
+    function isDocOwner() {
+      return isAuthenticated()
+        && resource != null
+        && 'uid' in resource.data
+        && resource.data.uid is string
+        && resource.data.uid == request.auth.uid;
+    }
+
+    function isPatientDocOwner() {
+      return hasValidActiveAccount()
+        && resource != null
+        && 'patient_id' in resource.data
+        && resource.data.patient_id is string
+        && resource.data.patient_id == request.auth.uid;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data)
+        || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data)
+        || (resource != null && request.resource.data.uid == resource.data.uid);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return resource != null
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string
+        && request.resource.data[field].size() >= minLen
+        && request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is string
+            && request.resource.data[field].size() >= minLen
+            && request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidEmail(email) {
+      return email is string
+        && email.size() <= 254
+        && email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isValidUrl(url) {
+      return url is string
+        && url.size() <= 2048
+        && (url.matches('^https://.*') || url.matches('^http://.*'));
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string
+        && dateStr.size() <= 40
+        && dateStr.matches('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$');
+    }
+
+    function isScopedPath(path) {
+      return path is string
+        && path.size() <= 512
+        && path.matches('^users/' + request.auth.uid + '/.*');
+    }
+
+    function isPositive(field) {
+      return request.resource.data[field] is number
+        && request.resource.data[field] > 0;
+    }
+
+    function isValidList(listVal, maxSize) {
+      return listVal is list && listVal.size() <= maxSize;
+    }
+
+    function isValidMap(mapData, allowedKeys) {
+      return mapData is map && mapData.keys().hasOnly(allowedKeys);
+    }
+
+    function isRecent(time) {
+      return time is timestamp
+        && time > request.time - duration.value(5, 'm')
+        && time <= request.time;
+    }
+
+    // =========================================================================
+    // Domain Validators (Schema, Type, Bounds & Immutability Definitions)
+    // =========================================================================
+
+    function isValidUser(data, userId) {
+      return data.keys().hasOnly([
+          'uid', 'role', 'status', 'session_epoch', 'full_name',
+          'email', 'phone', 'preferred_locale', 'created_at', 'updated_at'
+        ])
+        && data.keys().hasAll([
+          'uid', 'role', 'status', 'session_epoch', 'full_name',
+          'preferred_locale', 'created_at', 'updated_at'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.role in ['patient', 'doctor', 'pharmacist', 'paramedic', 'admin']
+        && data.status in ['pending_verification', 'active', 'suspended', 'deactivated']
+        && data.session_epoch is int && data.session_epoch >= 1 && data.session_epoch <= 1000000
+        && data.full_name is string && data.full_name.size() >= 2 && data.full_name.size() <= 120
+        && (!('email' in data) || isValidEmail(data.email))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 24))
+        && data.preferred_locale in ['ar', 'en']
+        && data.created_at is timestamp
+        && data.updated_at is timestamp;
+    }
+
+    function isValidPatient(data, patientId) {
+      return data.keys().hasOnly([
+          'uid', 'mrn', 'national_id_bidx', 'national_id_enc',
+          'blood_type', 'sex', 'onboarded', 'is_minor', 'created_at', 'updated_at'
+        ])
+        && data.keys().hasAll([
+          'uid', 'mrn', 'blood_type', 'sex', 'onboarded', 'is_minor',
+          'created_at', 'updated_at'
+        ])
+        && data.uid is string && data.uid == patientId && data.uid.size() <= 128
+        && data.mrn is string && data.mrn.size() >= 4 && data.mrn.size() <= 64
+        && (!('national_id_bidx' in data) || (data.national_id_bidx is string && data.national_id_bidx.size() >= 16 && data.national_id_bidx.size() <= 128))
+        && (!('national_id_enc' in data) || (data.national_id_enc is string && data.national_id_enc.size() >= 16 && data.national_id_enc.size() <= 2048))
+        && data.blood_type in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown']
+        && data.sex in ['male', 'female']
+        && data.onboarded is bool
+        && data.is_minor is bool
+        && data.created_at is timestamp
+        && data.updated_at is timestamp;
+    }
+
+    function isValidEmergencyContact(data) {
+      return data.keys().hasOnly([
+          'id', 'patient_id', 'name', 'relationship', 'phone_enc',
+          'priority', 'created_at', 'updated_at'
+        ])
+        && data.keys().hasAll([
+          'id', 'patient_id', 'name', 'relationship', 'priority',
+          'created_at', 'updated_at'
+        ])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.patient_id is string && data.patient_id.size() >= 1 && data.patient_id.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.relationship is string && data.relationship.size() >= 1 && data.relationship.size() <= 60
+        && (!('phone_enc' in data) || (data.phone_enc is string && data.phone_enc.size() >= 16 && data.phone_enc.size() <= 1024))
+        && data.priority is int && data.priority >= 1 && data.priority <= 10
+        && data.created_at is timestamp
+        && data.updated_at is timestamp;
+    }
+
+    function isValidPrescription(data) {
+      return data.keys().hasOnly([
+          'id', 'rx_number', 'patient_id', 'doctor_id', 'facility_id',
+          'status', 'signature_b64', 'issued_at', 'expires_at'
+        ])
+        && data.keys().hasAll([
+          'id', 'rx_number', 'patient_id', 'doctor_id', 'facility_id',
+          'status', 'signature_b64', 'issued_at', 'expires_at'
+        ])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.rx_number is string && data.rx_number.size() >= 4 && data.rx_number.size() <= 64
+        && data.patient_id is string && data.patient_id.size() >= 1 && data.patient_id.size() <= 128
+        && data.doctor_id is string && data.doctor_id.size() >= 1 && data.doctor_id.size() <= 128
+        && data.facility_id is string && data.facility_id.size() >= 1 && data.facility_id.size() <= 128
+        && data.status in ['pending', 'partially_dispensed', 'dispensed', 'cancelled', 'expired']
+        && data.signature_b64 is string && data.signature_b64.size() >= 32 && data.signature_b64.size() <= 512
+        && data.issued_at is timestamp
+        && data.expires_at is timestamp;
+    }
+
+    // =========================================================================
+    // Identity & Profile Collections (Owner `get` only; zero list/write)
+    // =========================================================================
+
+    match /users/{userId} {
+      allow get: if isActiveOwner(userId);
+      allow list, create, update, delete: if false;
+    }
+
+    match /patients/{patientId} {
+      allow get: if isActiveOwner(patientId) && hasRole('patient');
+      allow list, create, update, delete: if false;
+    }
+
+    match /doctors/{doctorId} {
+      allow get: if isActiveOwner(doctorId) && hasRole('doctor');
+      allow list, create, update, delete: if false;
+    }
+
+    match /pharmacists/{pharmacistId} {
+      allow get: if isActiveOwner(pharmacistId) && hasRole('pharmacist');
+      allow list, create, update, delete: if false;
+    }
+
+    match /paramedics/{paramedicId} {
+      allow get: if isActiveOwner(paramedicId) && hasRole('paramedic');
+      allow list, create, update, delete: if false;
+    }
+
+    match /practitioners/{practitionerId} {
+      allow get: if isActiveOwner(practitionerId) && isClinicalStaff();
+      allow list, create, update, delete: if false;
+    }
+
+    // =========================================================================
+    // Public Reference Catalogs (Active signed-in read-only; zero client write)
+    // =========================================================================
+
+    match /facilities/{facilityId} {
+      allow read: if hasValidActiveAccount();
+      allow write: if false;
+    }
+
+    match /drug_reference/{drugId} {
+      allow read: if hasValidActiveAccount();
+      allow write: if false;
+    }
+
+    match /drug_interactions/{interactionId} {
+      allow read: if hasValidActiveAccount();
+      allow write: if false;
+    }
+
+    match /icd10_reference/{codeId} {
+      allow read: if hasValidActiveAccount();
+      allow write: if false;
+    }
+
+    match /allergens_reference/{allergenId} {
+      allow read: if hasValidActiveAccount();
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // Patient-Owned Read-Only Clinical Headers (`get` by patient owner only)
+    // =========================================================================
+
+    match /prescriptions/{prescriptionId} {
+      allow get: if hasValidActiveAccount()
+        && hasRole('patient')
+        && isPatientDocOwner();
+      allow list, create, update, delete: if false;
+    }
+
+    match /emergency_contacts/{contactId} {
+      allow get: if hasValidActiveAccount()
+        && hasRole('patient')
+        && isPatientDocOwner();
+      allow list, create, update, delete: if false;
+    }
+
+    // =========================================================================
+    // Strictly Backend-Mediated Clinical, Biometric & Operational Collections
+    // =========================================================================
+
+    match /medical_records/{recordId} {
+      allow read, write: if false;
+    }
+
+    match /encounters/{encounterId} {
+      allow read, write: if false;
+    }
+
+    match /prescription_items/{itemId} {
+      allow read, write: if false;
+    }
+
+    match /dispensations/{dispensationId} {
+      allow read, write: if false;
+    }
+
+    match /biometric_templates/{templateId} {
+      allow read, write: if false;
+    }
+
+    match /access_grants/{grantId} {
+      allow read, write: if false;
+    }
+
+    match /emergency_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /idempotency_keys/{keyId} {
+      allow read, write: if false;
+    }
+
+    match /outbox_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /security_flags/{flagId} {
+      allow read, write: if false;
+    }
+
+    match /pending_approvals/{approvalId} {
+      allow read, write: if false;
+    }
+
+    match /share_codes/{codeId} {
+      allow read, write: if false;
+    }
+
+    match /verify_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /dispense_leases/{leaseId} {
+      allow read, write: if false;
+    }
+
+    match /assistant_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if false;
+    }
+
+    // Immutable SHA-256 hash-chained audit trail — zero client read or write.
+    match /system_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Default Catch-All Deny Rule
+    // =========================================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

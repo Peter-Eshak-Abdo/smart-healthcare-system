@@ -1,6 +1,7 @@
 import 'package:local_auth/local_auth.dart';
 
 import '../network/api_client.dart';
+import '../platform/platform_services.dart';
 import 'device_key_service.dart';
 
 /// Biometric step-up MFA helper using `local_auth` + device P-256 signature.
@@ -16,17 +17,22 @@ class StepUpService {
   final LocalAuthentication _localAuth;
 
   Future<String?> runBiometricStepUp({required String reason}) async {
-    final bool supported = await _localAuth.isDeviceSupported();
-    if (!supported) return null;
+    if (!PlatformServices.supportsBiometrics) return null;
+    try {
+      final bool supported = await _localAuth.isDeviceSupported();
+      if (!supported) return null;
 
-    final bool authenticated = await _localAuth.authenticate(
-      localizedReason: reason,
-      options: const AuthenticationOptions(
-        biometricOnly: false,
-        stickyAuth: true,
-      ),
-    );
-    if (!authenticated) return null;
+      final bool authenticated = await _localAuth.authenticate(
+        localizedReason: reason,
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+        ),
+      );
+      if (!authenticated) return null;
+    } catch (_) {
+      return null;
+    }
 
     final String deviceId = await _deviceKey.getOrCreateDeviceId();
     final Map<String, Object?> ch = await _api.postJson(

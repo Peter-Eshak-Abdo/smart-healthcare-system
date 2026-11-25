@@ -18,8 +18,8 @@ import { MedicalIdCard3D } from '@/components/three/MedicalIdCard3D';
 import type { ProblemDetails } from '@smarthealth/contracts';
 import { apiFetch } from '@/lib/api/client';
 import { ApiRequestError } from '@/lib/api/errors';
+import { getFirebaseIdToken } from '@/lib/firebase/client';
 import { formatCairoDateTime } from '@/lib/format/date';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0';
@@ -72,10 +72,7 @@ export default function ErConsolePage() {
     setError(null);
     setCandidates([]);
     try {
-      const supabase = getSupabaseBrowser();
-      const token = supabase
-        ? (await supabase.auth.getSession()).data.session?.access_token
-        : undefined;
+      const token = await getFirebaseIdToken();
       const formData = new FormData();
       formData.append('frames', blob, 'face.jpg');
       formData.append('reason_code', reason);

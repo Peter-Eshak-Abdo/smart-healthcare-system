@@ -9,13 +9,11 @@ const PROTECTED_SEGMENTS = ['/doctor', '/pharmacy', '/er', '/admin', '/print'];
 export default function proxy(request: NextRequest) {
   const response = intlMiddleware(request);
 
-  // Optimistic auth redirect only (authoritative checks happen in Server Component requireRole & backend-api)
+  // Optimistic session cookie check (authoritative check runs in SSR requireRole & backend-api)
   const pathname = request.nextUrl.pathname;
   const isProtected = PROTECTED_SEGMENTS.some((seg) => pathname.includes(seg));
   if (isProtected) {
-    const hasSessionCookie = request.cookies
-      .getAll()
-      .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
+    const hasSessionCookie = Boolean(request.cookies.get('sh_id_token')?.value);
 
     if (!hasSessionCookie && process.env.NEXT_PUBLIC_ALLOW_DEMO_SHELL !== 'true') {
       const locale = pathname.startsWith('/en') ? 'en' : 'ar';

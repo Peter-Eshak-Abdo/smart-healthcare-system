@@ -4,7 +4,6 @@ import type { NextConfig } from 'next';
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const apiOrigin = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
-const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 
 const cspDirectives = [
   "default-src 'self'",
@@ -12,7 +11,7 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' https: data:",
-  `connect-src 'self' ${apiOrigin} ${supabaseOrigin}`,
+  `connect-src 'self' ${apiOrigin} https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

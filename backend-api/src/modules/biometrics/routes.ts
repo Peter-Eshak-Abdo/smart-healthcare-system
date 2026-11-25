@@ -5,10 +5,11 @@ import {
   BiometricFaceEnrollBodySchema,
 } from '@smarthealth/contracts';
 import { Router } from 'express';
-import { sql } from 'kysely';
 import multer from 'multer';
 import type { AppDeps } from '../../app-deps.js';
-import { withUserTx } from '../../db/with-user-tx.js';
+import { matchFaceTemplates } from '../../firebase/biometric-match.js';
+import { requireDb } from '../../firebase/firestore-helpers.js';
+import { COLLECTIONS, type ConsentDoc } from '../../firebase/firestore-types.js';
 import { mapFaceAnalysisFailure } from '../../integrations/ai-client.js';
 import { requirePermission, requireStepUp } from '../../middleware/authorize.js';
 import { idempotencyMiddleware } from '../../middleware/idempotency.js';
@@ -16,12 +17,13 @@ import { validate } from '../../middleware/validate.js';
 import { writeAuditLog } from '../../security/audit.js';
 import { AppError } from '../../shared/errors.js';
 
-export interface BiometricFaceAnalyzeResult {
-  transformed_template: number[];
-  model_version: string;
-  transform_key_version: number;
-  quality_score: number;
-  liveness_score: number;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024, files: 5 },
+});
+
+function isJpegBuffer(buf: Buffer): boolean {
+  return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
 }
 
 export interface BiometricAnalyzerPort {
@@ -29,21 +31,13 @@ export interface BiometricAnalyzerPort {
     frames: Buffer[];
     sequence: string[];
     clientSignals: { blink_detected: boolean; yaw_deltas: number[]; capture_ms: number };
-  }): Promise<BiometricFaceAnalyzeResult>;
-}
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 300 * 1024,
-    files: 5,
-  },
-});
-
-const LIVENESS_SEQUENCE = ['blink', 'turn_left', 'turn_right'] as const;
-
-function isJpegBuffer(buf: Buffer): boolean {
-  return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  }): Promise<{
+    transformed_template: number[];
+    model_version: string;
+    transform_key_version: number;
+    quality_score: number;
+    liveness_score: number;
+  }>;
 }
 
 export function biometricRoutes(
@@ -51,13 +45,6 @@ export function biometricRoutes(
   analyzerPort?: BiometricAnalyzerPort,
 ): Router {
   const router = Router();
-
-  const requirePools = () => {
-    if (!deps.pools) {
-      throw new AppError('INTERNAL_ERROR', { detail: 'database_not_configured' });
-    }
-    return deps.pools;
-  };
 
   router.get(
     '/biometric/challenge',
@@ -67,19 +54,20 @@ export function biometricRoutes(
         const auth = res.locals.auth!;
         const { purpose } = res.locals.validated!.query as { purpose: 'enroll' | 'verify' };
         const challengeId = randomUUID();
-        const sequence = [...LIVENESS_SEQUENCE];
+        const sequence = ['blink', 'turn_right', 'turn_left'];
+        const expiresIn = 90;
 
         await deps.redis.set(
           `bio:ch:${challengeId}`,
           JSON.stringify({ userId: auth.userId, purpose, sequence }),
           'EX',
-          60,
+          expiresIn,
         );
 
         res.status(200).json({
           challenge_id: challengeId,
           sequence,
-          expires_in: 60,
+          expires_in: expiresIn,
         });
       } catch (err) {
         next(err);
@@ -112,14 +100,13 @@ export function biometricRoutes(
           }
         }
 
-        const pools = requirePools();
-        const hasConsent = await withUserTx(pools, auth, async (tx) => {
-          const r = await sql<{ granted: boolean }>`
-            select private.has_consent(${auth.userId}::uuid, 'biometric_face') as granted
-          `.execute(tx);
-          return r.rows[0]?.granted ?? false;
-        });
-
+        const db = requireDb(deps);
+        const consentSnap = await db
+          .collection(COLLECTIONS.consents)
+          .where('patient_id', '==', auth.userId)
+          .where('type', '==', 'biometric_face')
+          .get();
+        const hasConsent = consentSnap.docs.some((d) => (d.data() as ConsentDoc).granted === true);
         if (!hasConsent) {
           throw new AppError('BIO_CONSENT_REQUIRED');
         }
@@ -147,7 +134,13 @@ export function biometricRoutes(
               frames,
               priority: 'general',
             });
-            if (!analysis.face_detected || analysis.face_count !== 1 || !analysis.quality.passed || !analysis.liveness.passed || !analysis.template) {
+            if (
+              !analysis.face_detected ||
+              analysis.face_count !== 1 ||
+              !analysis.quality.passed ||
+              !analysis.liveness.passed ||
+              !analysis.template
+            ) {
               throw mapFaceAnalysisFailure(analysis);
             }
             return {
@@ -166,47 +159,46 @@ export function biometricRoutes(
           clientSignals,
         });
 
-        const vecLiteral = `[${analysis.transformed_template.join(',')}]`;
-        const result = await withUserTx(pools, auth, async (tx) => {
-          const dup = await sql<{ exists: boolean }>`
-            select private.face_duplicate_exists(
-              ${vecLiteral}::extensions.vector,
-              ${analysis.model_version},
-              ${analysis.transform_key_version},
-              ${deps.env.FACE_MATCH_ACCEPT}
-            ) as exists
-          `.execute(tx);
+        const matches = await matchFaceTemplates(db, analysis.transformed_template, {
+          keyVersion: analysis.transform_key_version,
+          limit: 3,
+        });
+        const duplicateOther = matches.find(
+          (m) => m.patient_id !== auth.userId && m.score >= deps.env.FACE_MATCH_ACCEPT,
+        );
+        if (duplicateOther) {
+          throw new AppError('BIO_ALREADY_ENROLLED');
+        }
 
-          if (dup.rows[0]?.exists) {
-            throw new AppError('BIO_ALREADY_ENROLLED');
-          }
-
-          await sql`
-            select private.enroll_face_template(
-              ${vecLiteral}::extensions.vector,
-              ${analysis.model_version},
-              ${analysis.transform_key_version},
-              ${analysis.quality_score},
-              ${analysis.liveness_score}
-            )
-          `.execute(tx);
-
-          await writeAuditLog(tx, auth, {
-            action: 'FACE_ENROLLED',
-            resourceType: 'biometric_template',
-            patientId: auth.userId,
-            metadata: { model_version: analysis.model_version },
-          });
-
-          return {
-            enrolled: true as const,
-            template_count: 1,
-            model_version: analysis.model_version,
-            enrolled_at: new Date().toISOString(),
-          };
+        const templateId = randomUUID();
+        const enrolledAt = new Date().toISOString();
+        await db.collection(COLLECTIONS.biometricTemplates).doc(templateId).set({
+          id: templateId,
+          patient_id: auth.userId,
+          status: 'active',
+          key_version: analysis.transform_key_version,
+          model_version: analysis.model_version,
+          transformed_vector: analysis.transformed_template,
+          quality_score: analysis.quality_score,
+          liveness_score: analysis.liveness_score,
+          enrolled_at: enrolledAt,
+          deleted_at: null,
         });
 
-        res.status(201).json(result);
+        await writeAuditLog(db, auth, {
+          action: 'FACE_ENROLLED',
+          resourceType: 'biometric_template',
+          resourceId: templateId,
+          patientId: auth.userId,
+          metadata: { model_version: analysis.model_version },
+        });
+
+        res.status(201).json({
+          enrolled: true as const,
+          template_count: 1,
+          model_version: analysis.model_version,
+          enrolled_at: enrolledAt,
+        });
       } catch (err) {
         if (err instanceof AppError && err.code.startsWith('BIO_')) {
           await deps.rateLimit
@@ -229,15 +221,24 @@ export function biometricRoutes(
     async (_req, res, next) => {
       try {
         const auth = res.locals.auth!;
-        const pools = requirePools();
+        const db = requireDb(deps);
+        const snap = await db
+          .collection(COLLECTIONS.biometricTemplates)
+          .where('patient_id', '==', auth.userId)
+          .where('status', '==', 'active')
+          .get();
 
-        await withUserTx(pools, auth, async (tx) => {
-          await sql`select private.delete_my_face_templates()`.execute(tx);
-          await writeAuditLog(tx, auth, {
-            action: 'FACE_TEMPLATES_DELETED',
-            resourceType: 'biometric_template',
-            patientId: auth.userId,
-          });
+        const nowIso = new Date().toISOString();
+        const batch = db.batch();
+        for (const doc of snap.docs) {
+          batch.update(doc.ref, { status: 'deleted', deleted_at: nowIso });
+        }
+        await batch.commit();
+
+        await writeAuditLog(db, auth, {
+          action: 'FACE_TEMPLATES_DELETED',
+          resourceType: 'biometric_template',
+          patientId: auth.userId,
         });
 
         res.status(204).send();

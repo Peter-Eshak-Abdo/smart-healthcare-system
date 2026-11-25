@@ -4,8 +4,7 @@ description: Non-negotiable security and privacy rules (healthcare data)
 ---
 # Security rules (violations block merge)
 1. Never bypass RBAC: every backend route declares `requirePermission(...)`; staff routes require aal2 and a verified licence.
-2. Never bypass RLS: domain DB access ONLY through `withUserTx(auth, fn)`. Never use the Supabase secret/service key
-   for user-initiated data access (allowed only in modules/admin, modules/auth signOut, scripts/seed-dev.ts).
+2. Never expose Firestore/Storage directly for clinical writes: domain DB access runs ONLY through `backend-api` Admin SDK with `requirePermission(...)`, custom claims validation, and audit logging. Never embed Firebase service account credentials in client bundles.
 3. Always log sensitive reads: any read of patient clinical data, emergency profile/contacts, or prescriptions by a
    non-owner calls the audit helper (`PATIENT_RECORD_READ`, `EMERGENCY_PROFILE_READ`, ...). Writes are logged by DB triggers.
 4. Never log PHI: no request/response bodies, national IDs, phones, names, clinical text, chat text, images, embeddings, tokens.

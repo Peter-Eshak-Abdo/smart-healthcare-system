@@ -11,21 +11,26 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm contracts:check
-      - run: pnpm --filter backend-api build
-      - run: pnpm --filter web-admin build
-      - name: Push Supabase Migrations (Staging)
-        if: env.SUPABASE_DB_URL != ''
+          cache: "npm"
+      - run: npm ci
+      - run: npm run contracts:check
+      - run: npm run build -w @smarthealth/contracts
+      - run: npm run build -w backend-api
+      - run: npm run build -w web-admin
+      - name: Deploy Firestore Rules & Indexes (Staging)
+        if: env.FIREBASE_SERVICE_ACCOUNT_STAGING != '' && env.FIREBASE_PROJECT_ID_STAGING != ''
         env:
-          SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
-        run: npx supabase db push --db-url "$SUPABASE_DB_URL"
-      - name: Validate Production Compose Syntax
-        run: docker compose -f infra/docker-compose.prod.yml config -q
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-sa.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx --yes firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project "$FIREBASE_PROJECT_ID"
+          rm -f /tmp/firebase-sa.json
+      - name: Trigger Render Staging Deploy
+        if: env.RENDER_DEPLOY_HOOK_STAGING != ''
+        env:
+          RENDER_DEPLOY_HOOK_STAGING: ${{ secrets.RENDER_DEPLOY_HOOK_STAGING }}
+        run: curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_STAGING"

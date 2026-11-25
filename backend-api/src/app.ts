@@ -36,6 +36,15 @@ export function buildApp(env: AppEnv, opts: BuildAppOptions = {}): Express {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
+  // Fast root health endpoint for Render.com port-scan & platform health checks
+  app.get('/health', (_req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      version: env.APP_VERSION,
+      commit: env.GIT_COMMIT,
+    });
+  });
+
   // 1. Request ID + AsyncLocalStorage context
   app.use(requestIdMiddleware());
   // 2. Structured HTTP request logging with PHI redaction
@@ -61,7 +70,7 @@ export function buildApp(env: AppEnv, opts: BuildAppOptions = {}): Express {
   // 8. Global per-user rate limiter
   app.use('/v1', deps.rateLimit.middleware('global_user'));
 
-  // 9. Stage 2 & Stage 4 Authenticated Domain Modules
+  // 9. Stage 2 & Stage 4 Authenticated Domain Modules (Firestore + Firebase Auth)
   app.use(
     '/v1',
     authRoutes(deps),
@@ -80,7 +89,7 @@ export function buildApp(env: AppEnv, opts: BuildAppOptions = {}): Express {
 
   // 10-11. 404 + RFC 9457 Problem Details error handler
   app.use(notFoundMiddleware());
-  app.use(errorHandlerMiddleware(deps.logger, deps.pools));
+  app.use(errorHandlerMiddleware(deps.logger, deps.db));
 
   return app;
 }

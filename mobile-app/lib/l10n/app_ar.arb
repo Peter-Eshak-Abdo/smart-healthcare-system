@@ -58,5 +58,8 @@
   "rxTamperBlock": "الروشتة دي مش سليمة — ماتصرفهاش",
   "rxAlreadyDispensed": "الروشتة اتصرفت بالكامل قبل كده",
   "rxOfflineWarn": "مفيش نت: الصرف بيحتاج اتصال مباشر بالسيرفر.",
-  "rxDispenseBtn": "تأكيد الصرف"
+  "rxDispenseBtn": "تأكيد الصرف",
+  "authDownloadAndroidApk": "حمّل تطبيق الأندرويد (APK)",
+  "platformCameraUnavailable": "الكاميرا مش متاحة على الجهاز ده. استخدم الرقم القومي أو افتح من الموبايل.",
+  "platformScannerUnavailable": "ماسح QR المباشر مش متاح على النظام ده. اكتب كود الروشتة SH1. يدوي تحت."
 }

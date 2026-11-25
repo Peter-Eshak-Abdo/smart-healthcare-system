@@ -1,13 +1,18 @@
 'use client';
 
 import type { MeResponse } from '@smarthealth/contracts';
+import {
+  multiFactor,
+  TotpMultiFactorGenerator,
+  type TotpSecret,
+} from 'firebase/auth';
 import { QrCode, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ProblemAlert } from '@/components/common/ProblemAlert';
 import { apiFetch } from '@/lib/api/client';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
+import { getFirebaseBrowserAuth, syncFirebaseSessionCookie } from '@/lib/firebase/client';
 
 function portalHome(role: MeResponse['role'], prefix: string): string {
   switch (role) {
@@ -30,28 +35,27 @@ export default function MfaEnrollPage() {
   const router = useRouter();
   const tAuth = useTranslations('auth');
 
-  const [factorId, setFactorId] = useState<string | null>(null);
-  const [qrSvg, setQrSvg] = useState<string | null>(null);
-  const [secret, setSecret] = useState<string | null>(null);
+  const [totpSecret, setTotpSecret] = useState<TotpSecret | null>(null);
+  const [qrUri, setQrUri] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowser();
-    if (!supabase) return;
+    const auth = getFirebaseBrowserAuth();
+    const user = auth?.currentUser;
+    if (!user) return;
     let active = true;
-    void supabase.auth.mfa
-      .enroll({ factorType: 'totp', friendlyName: 'SmartHealth Clinical' })
-      .then(({ data, error: enrollErr }) => {
+    void multiFactor(user)
+      .getSession()
+      .then((session) => TotpMultiFactorGenerator.generateSecret(session))
+      .then((secret) => {
         if (!active) return;
-        if (enrollErr || !data) {
-          setError(enrollErr ?? new Error('MFA enrollment unavailable'));
-          return;
-        }
-        setFactorId(data.id);
-        setQrSvg(data.totp.qr_code);
-        setSecret(data.totp.secret);
+        setTotpSecret(secret);
+        setQrUri(secret.generateQrCodeUrl(user.email ?? 'staff@smarthealth.eg', 'SmartHealth'));
+      })
+      .catch((err) => {
+        if (active) setError(err);
       });
     return () => {
       active = false;
@@ -60,25 +64,16 @@ export default function MfaEnrollPage() {
 
   const handleConfirm = async (e: FormEvent) => {
     e.preventDefault();
-    const supabase = getSupabaseBrowser();
-    if (!supabase || !factorId) return;
+    const auth = getFirebaseBrowserAuth();
+    const user = auth?.currentUser;
+    if (!user || !totpSecret) return;
     setError(null);
     setSubmitting(true);
     try {
-      const { error: challengeErr, data: challenge } = await supabase.auth.mfa.challenge({ factorId });
-      if (challengeErr || !challenge) {
-        setError(challengeErr ?? new Error('Failed to start challenge'));
-        return;
-      }
-      const { error: verifyErr } = await supabase.auth.mfa.verify({
-        factorId,
-        challengeId: challenge.id,
-        code: code.trim(),
-      });
-      if (verifyErr) {
-        setError(verifyErr);
-        return;
-      }
+      const assertion = TotpMultiFactorGenerator.assertionForEnrollment(totpSecret, code.trim());
+      await multiFactor(user).enroll(assertion, 'SmartHealth Clinical');
+      const token = await user.getIdToken(true);
+      await syncFirebaseSessionCookie(token);
       const me = await apiFetch<MeResponse>('/v1/me', { locale });
       router.push(portalHome(me.role, prefix) as never);
     } catch (err) {
@@ -105,13 +100,14 @@ export default function MfaEnrollPage() {
           </div>
         )}
 
-        {qrSvg && (
-          <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-border bg-white p-4">
-            {/* Supabase enroll returns an inline SVG data URI */}
-            <img src={qrSvg} alt="TOTP QR" className="h-44 w-44" />
-            {secret && (
-              <p className="clinical-num break-all text-center font-mono text-xs text-muted-foreground" dir="ltr">
-                {secret}
+        {totpSecret && (
+          <div className="mt-4 space-y-2 rounded-xl border border-border bg-background p-4 text-center">
+            <p className="clinical-num break-all font-mono text-xs text-foreground" dir="ltr">
+              {totpSecret.secretKey}
+            </p>
+            {qrUri && (
+              <p className="clinical-num break-all font-mono text-[10px] text-muted-foreground" dir="ltr">
+                {qrUri}
               </p>
             )}
           </div>
@@ -137,7 +133,7 @@ export default function MfaEnrollPage() {
           </div>
           <button
             type="submit"
-            disabled={submitting || !factorId}
+            disabled={submitting || !totpSecret}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
           >
             <ShieldCheck className="h-4 w-4" />

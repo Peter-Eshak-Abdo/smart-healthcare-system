@@ -1,13 +1,23 @@
 'use client';
 
 import type { MeResponse } from '@smarthealth/contracts';
+import {
+  getMultiFactorResolver,
+  multiFactor,
+  signInWithEmailAndPassword,
+  type MultiFactorError,
+} from 'firebase/auth';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import { ProblemAlert } from '@/components/common/ProblemAlert';
 import { apiFetch } from '@/lib/api/client';
-import { getSupabaseBrowser } from '@/lib/supabase/client';
+import {
+  getFirebaseBrowserAuth,
+  setPendingMfaResolver,
+  syncFirebaseSessionCookie,
+} from '@/lib/firebase/client';
 
 function resolvePortalHome(role: MeResponse['role'], prefix: string): string {
   switch (role) {
@@ -40,39 +50,38 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    const supabase = getSupabaseBrowser();
-    if (!supabase) {
+    const auth = getFirebaseBrowserAuth();
+    if (!auth) {
       setError(new Error(tErr('GENERIC')));
       return;
     }
 
     setSubmitting(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (signInError) {
-        setError(signInError);
-        return;
-      }
-
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const verifiedTotp = factors?.totp?.find((f) => f.status === 'verified');
-      if (!verifiedTotp) {
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const factors = multiFactor(cred.user).enrolledFactors;
+      if (factors.length === 0) {
+        const token = await cred.user.getIdToken();
+        await syncFirebaseSessionCookie(token);
         router.push(`${prefix}/mfa/enroll` as never);
         return;
       }
 
-      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aalData?.currentLevel !== 'aal2') {
-        router.push(`${prefix}/mfa/verify` as never);
-        return;
-      }
-
+      const token = await cred.user.getIdToken();
+      await syncFirebaseSessionCookie(token);
       const me = await apiFetch<MeResponse>('/v1/me', { locale });
       router.push(resolvePortalHome(me.role, prefix) as never);
     } catch (err) {
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : '';
+      if (code === 'auth/multi-factor-auth-required') {
+        const resolver = getMultiFactorResolver(auth, err as MultiFactorError);
+        setPendingMfaResolver(resolver);
+        router.push(`${prefix}/mfa/verify` as never);
+        return;
+      }
       setError(err);
     } finally {
       setSubmitting(false);

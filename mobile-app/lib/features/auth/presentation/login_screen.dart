@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/firebase_config.dart';
+import '../../../core/platform/platform_services.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/sh_colors.dart';
 import '../../../l10n/app_localizations.dart';
@@ -33,7 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      await FirebaseConfig.signInWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
       );
@@ -154,6 +156,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               icon: const Icon(Icons.medical_information_outlined),
               label: Text(l10n.authOfflineCardBtn),
             ),
+            if (kIsWeb) ...<Widget>[
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: () => PlatformServices.openExternalUri(
+                  FirebaseConfig.androidApkDownloadUrl,
+                ),
+                icon: const Icon(Icons.android_rounded),
+                label: Text(l10n.authDownloadAndroidApk),
+              ),
+            ],
           ],
         ),
       ),

@@ -1,6 +1,10 @@
-import { sql } from 'kysely';
+import type { Firestore } from 'firebase-admin/firestore';
 import type { AppDeps } from '../../app-deps.js';
-import type { Tx } from '../../db/with-user-tx.js';
+import {
+  COLLECTIONS,
+  type DrugReferenceDoc,
+  type MedicalRecordDoc,
+} from '../../firebase/firestore-types.js';
 
 export interface SafetyAlertOutput {
   alert_key: string;
@@ -27,7 +31,7 @@ export interface SafetyCheckResult {
 }
 
 export async function runClinicalSafetyCheck(
-  tx: Tx,
+  db: Firestore,
   deps: Pick<AppDeps, 'aiClient'>,
   input: {
     patientId: string;
@@ -36,72 +40,60 @@ export async function runClinicalSafetyCheck(
     locale: 'ar' | 'en';
   },
 ): Promise<SafetyCheckResult> {
-  const ctxRes = await sql<{ payload: unknown }>`
-    select private.patient_safety_context(${input.patientId}::uuid) as payload
-  `.execute(tx);
+  const recSnap = await db
+    .collection(COLLECTIONS.medicalRecords)
+    .where('patient_id', '==', input.patientId)
+    .get();
+  const records = recSnap.docs.map((d) => d.data() as MedicalRecordDoc);
 
-  const rawCtx = (ctxRes.rows[0]?.payload ?? {}) as {
-    current?: Array<{ key: string; drug_id: string; from_restricted_record?: boolean }>;
-    allergies?: Array<{
-      allergen_type: 'ingredient' | 'drug_class' | 'food' | 'environmental' | 'other';
-      allergen_code?: string | null;
-      free_text_present?: boolean;
-      severity: 'mild' | 'moderate' | 'severe' | 'anaphylaxis';
-    }>;
-    conditions?: Array<{ icd10_code: string }>;
-  };
+  const today = new Date().toISOString().slice(0, 10);
+  const currentMeds = records
+    .filter(
+      (r) =>
+        r.kind === 'medication' &&
+        r.status === 'active' &&
+        (!r.until || r.until >= today) &&
+        Boolean(r.drug_id),
+    )
+    .map((r) => ({
+      key: r.id,
+      drug_id: r.drug_id!,
+      from_restricted_record: r.visibility === 'restricted',
+    }));
 
-  const currentMeds = rawCtx.current ?? [];
   const currentByKey = new Map(currentMeds.map((m) => [m.key, m]));
   const drugDisplayMap = new Map<string, string>();
-  if (currentMeds.length > 0) {
-    const curDrugIds = currentMeds.map((m) => m.drug_id);
-    const drugRows = await sql<{ id: string; display: string }>`
-      select id, (generic_name || ' ' || strength) as display
-        from ref.drugs
-       where id = any(${curDrugIds}::uuid[])
-    `.execute(tx);
-    for (const d of drugRows.rows) {
-      drugDisplayMap.set(d.id, d.display);
+  for (const med of currentMeds) {
+    if (!drugDisplayMap.has(med.drug_id)) {
+      const dSnap = await db.collection(COLLECTIONS.drugReference).doc(med.drug_id).get();
+      if (dSnap.exists) {
+        const d = dSnap.data() as DrugReferenceDoc;
+        drugDisplayMap.set(med.drug_id, `${d.generic_name} ${d.strength}`.trim());
+      }
     }
   }
+
+  const allergies = records
+    .filter((r) => r.kind === 'allergy' && r.status !== 'refuted')
+    .map((r) => ({
+      allergen_type: r.allergen_type ?? ('other' as const),
+      allergen_code: r.allergen_code ?? null,
+      free_text_present: Boolean(r.allergen_free_text_enc),
+      severity: r.severity ?? ('moderate' as const),
+    }));
+
+  const conditions = records
+    .filter((r) => r.kind === 'condition' && r.status === 'active' && Boolean(r.icd10_code))
+    .map((r) => ({ icd10_code: r.icd10_code! }));
 
   try {
     const aiResult = await deps.aiClient.checkClinicalInteractions({
       proposed: input.items.map((it) => ({ key: it.client_key, drug_id: it.drug_id })),
-      current: currentMeds.map((m) => ({
-        key: m.key,
-        drug_id: m.drug_id,
-        from_restricted_record: Boolean(m.from_restricted_record),
-      })),
-      allergies: rawCtx.allergies ?? [],
-      conditions: rawCtx.conditions ?? [],
+      current: currentMeds,
+      allergies,
+      conditions,
       locale: input.locale,
     });
-
-    const alertKeys = aiResult.alerts.map((a) => a.alert_key);
-    const reviewedMap = new Map<string, { by: string; at: string }>();
-    if (alertKeys.length > 0) {
-      const revRows = await sql<{ alert_key: string; doctor_name: string; overridden_at: string }>`
-        select distinct on (ca.alert_key)
-          ca.alert_key,
-          p.full_name as doctor_name,
-          ca.overridden_at::text
-        from app.clinical_alerts ca
-        join app.profiles p on p.id = ca.doctor_id
-        where ca.patient_id = ${input.patientId}::uuid
-          and ca.overridden
-          and ca.alert_key = any(${alertKeys}::text[])
-        order by ca.alert_key, ca.overridden_at desc
-      `.execute(tx);
-
-      for (const r of revRows.rows) {
-        reviewedMap.set(r.alert_key, {
-          by: r.doctor_name,
-          at: new Date(r.overridden_at).toISOString(),
-        });
-      }
-    }
 
     return {
       checks_status: aiResult.checks_status,
@@ -124,11 +116,13 @@ export async function runClinicalSafetyCheck(
             ? {
                 involves_current_medication: {
                   display: drugDisplayMap.get(relMed.drug_id) ?? 'Current medication',
-                  from_restricted_record: Boolean(relMed.from_restricted_record || a.from_restricted_record),
+                  from_restricted_record: Boolean(
+                    relMed.from_restricted_record || a.from_restricted_record,
+                  ),
                 },
               }
             : {}),
-          previously_reviewed: reviewedMap.get(a.alert_key) ?? null,
+          previously_reviewed: null,
           rule_id: a.rule_id,
           engine_version: aiResult.engine_version,
           dataset_version: aiResult.dataset_version,

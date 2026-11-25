@@ -8,12 +8,13 @@ const env = loadEnv();
 const deps = createAppDeps(env);
 const app = buildApp(env, { deps });
 
-const outboxHandle = deps.pools
-  ? startOutboxWorker(deps.pools, createNotifier(deps.logger), deps.logger)
+const outboxHandle = deps.db
+  ? startOutboxWorker(deps.db, createNotifier(deps.logger), deps.logger)
   : null;
 
-const server = app.listen(env.PORT, () => {
-  deps.logger.info({ port: env.PORT, env: env.APP_ENV }, 'backend-api listening');
+const port = Number(process.env.PORT) || env.PORT || 4000;
+const server = app.listen(port, '0.0.0.0', () => {
+  deps.logger.info({ host: '0.0.0.0', port, env: env.APP_ENV }, 'backend-api listening');
 });
 
 async function shutdown(signal: string): Promise<void> {

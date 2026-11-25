@@ -8,7 +8,7 @@ description: Next.js 16 web portal conventions (doctor, pharmacist, admin)
   role layouts via `requireRole()` (server) and in the backend.
 - Data: Server Components fetch with `cache: 'no-store'` for PHI; client components use TanStack Query with keys from lib/api/query-keys.ts.
   Never copy server data into Zustand. Clear the query cache on logout and patient switch.
-- API calls only through the typed openapi-fetch client (`useApi()` / `serverApi()`); never call Supabase tables from the browser.
+- API calls only through the typed openapi-fetch client (`useApi()` / `serverApi()`); never call Firestore collections from the browser.
 - Forms: React Hook Form + zod resolvers using schemas from @smarthealth/contracts.
 - Styling: Tailwind logical utilities only (ms/me/ps/pe/start/end/text-start/text-end). Banned: ml-, mr-, pl-, pr-, left-, right-, text-left, text-right.
 - Colors/spacing from design tokens (CSS variables). No hard-coded hex in components.
