@@ -21,7 +21,7 @@ jobs:
             -H "X-Client: ci/1.0.0" | grep -q '"status":"ok"'
       - name: OWASP ZAP Baseline (Staging Web)
         if: env.STAGING_WEB_URL != ''
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: ${{ secrets.STAGING_WEB_URL }}
           fail_action: false
