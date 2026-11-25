@@ -1,0 +1,13 @@
+title = "SmartHealth Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow documentation examples and test placeholders"
+paths = [
+  '''docs/.*''',
+  '''\.env\.example$''',
+  '''packages/contracts/examples/.*''',
+  '''supabase/tests/.*'''
+]

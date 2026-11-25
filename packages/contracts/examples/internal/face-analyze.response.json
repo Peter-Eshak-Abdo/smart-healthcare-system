@@ -1,0 +1,27 @@
+{
+  "face_detected": true,
+  "face_count": 1,
+  "selected_face": { "bbox": [112, 80, 402, 430], "det_score": 0.93 },
+  "quality": {
+    "score": 0.71,
+    "blur": 0.12,
+    "brightness": 128.0,
+    "yaw": -4.2,
+    "pitch": 3.1,
+    "passed": true,
+    "hints": []
+  },
+  "liveness": {
+    "mode": "active",
+    "score": 0.94,
+    "passed": true,
+    "checks": { "pad_model": 0.94, "challenge_completed": true, "frame_consistency": true }
+  },
+  "template": {
+    "vector": [0.0123, -0.0456],
+    "dim": 512
+  },
+  "model_version": "buffalo_l-arcface-r50@1",
+  "transform_key_version": 1,
+  "timings_ms": { "decode": 8, "detect": 42, "liveness": 31, "embed": 55, "total": 141 }
+}

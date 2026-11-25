@@ -1,0 +1,21 @@
+{
+  "checks_status": "complete",
+  "engine_version": "rules-2026.11.1",
+  "dataset_version": "seed-2026-11",
+  "unmapped_drug_ids": [],
+  "alerts": [
+    {
+      "alert_key": "DD:ING-IBUPROFEN:ING-WARFARIN",
+      "type": "drug_drug",
+      "severity": "major",
+      "item_keys": ["i1"],
+      "related_keys": ["m1"],
+      "rule_id": "SEED-002",
+      "title": { "en": "Interaction with active medication", "ar": "تداخل مع دواء حالي" },
+      "message": { "en": "Increased bleeding risk.", "ar": "ارتفاع خطر النزيف." },
+      "management": { "en": "Prefer paracetamol.", "ar": "يفضل استخدام الباراسيتامول." },
+      "source": "seed:ddi-rules",
+      "from_restricted_record": false
+    }
+  ]
+}

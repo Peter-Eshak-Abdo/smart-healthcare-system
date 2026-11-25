@@ -1,0 +1,7 @@
+{
+  "session_ref": "sha256-session-1",
+  "locale": "ar",
+  "history": [],
+  "message": "عندي صداع بسيط من الصبح",
+  "patient_context": { "age_band": "30-39", "sex": "female", "pregnant": null }
+}

@@ -1,0 +1,54 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: smarthealth-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - smarthealth_private
+
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    container_name: smarthealth-ai
+    env_file:
+      - ../ai-service/.env
+    # Never expose ai-service publicly; private network only
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - smarthealth_private
+    profiles: ["full"]
+
+  backend-api:
+    build:
+      context: ..
+      dockerfile: backend-api/Dockerfile
+    container_name: smarthealth-backend
+    env_file:
+      - ../backend-api/.env
+    ports:
+      - "4000:4000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - smarthealth_private
+    profiles: ["full"]
+
+networks:
+  smarthealth_private:
+    driver: bridge

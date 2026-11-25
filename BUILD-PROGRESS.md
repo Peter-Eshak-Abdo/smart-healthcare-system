@@ -1,0 +1,12 @@
+# SmartHealth — Build Progress Log
+
+| Stage | Description | Status | Verification |
+|-------|-------------|--------|--------------|
+| Stage 0 | Monorepo Setup, Env Templates, Linters & Antigravity Rules | Done | `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`, `pnpm contracts:check`, `uv run ruff/mypy/pytest`, `flutter analyze/test` all green |
+| Stage 1 | Database Schema, pgvector, pgcrypto, RLS Policies & Seed Data | Done (Static; Live DB Pending Host Postgres/Docker) | Migrations `000001`–`000007`, `01_reference.sql`, `config.toml`, and T01–T25 tests + `run.sh` written & syntax-checked; live `psql`/`supabase db reset` execution blocked on Windows host lacking Docker & `psql` |
+| Stage 2 | Security Layer & Backend Core (Auth, RBAC, Audit, Patient/Doctor APIs) | Done | `@smarthealth/contracts` OpenAPI/Zod + `backend-api` ESLint, `tsc --noEmit`, `build`, and 20/20 unit/security tests green |
+| Stage 3 | AI Microservice (Face Recognition + Liveness + Drug Alerts + Medical Assistant) | Done | `ai-service` ruff clean, `mypy --strict` (34 files, 0 issues), `pytest` (12/12 green); `backend-api` `AiClient` wired & 23/23 tests green |
+| Stage 4 | E-Prescription & Pharmacy Transactional Engine + Emergency API | Done | Stage 4 contracts + `backend-api` ESLint, `tsc --noEmit`, `build`, and 30/30 tests green (JCS+Ed25519 signing, `SH1.`/`SHEC1.` verification, atomic Rx lock, closed emergency schema, assistant fallback) |
+| Stage 5 | Web Frontend (Next.js Doctor, Pharmacist, Admin, ER Portals) | Done | Contrast check (12/12 modes >= 4.5 / >= 7.0), ESLint (0 errors, logical CSS & zero-hex rules), `tsc --noEmit` (0 errors), Vitest (3 files / 7 tests passed), `next build` (all 25 localized & portal routes built cleanly) |
+| Stage 6 | Mobile App (Flutter Patient, Paramedic Emergency, Pharmacist Modes) | Done | `flutter gen-l10n`, `flutter analyze --fatal-warnings` (0 issues), `flutter test` (4/4 tests passed: RTL Arabic default + EN switch, Offline Emergency Card, 4 Theme Modes + Large Font, 3D Card/FaceMesh/AiOrb) |
+| Stage 7 | End-to-End Integration, Security Penetration Checklist, Edge-Case Testing & Deployment | Done | `infra/docker-compose.prod.yml`, `infra/Caddyfile`, `.github/workflows/{deploy-staging,deploy-prod,nightly}.yml`, `e2e/{scenarios.mjs,k6-nfr.js}`, `docs/runbooks/*`, `docs/DEMO-SCRIPT.md`, `docs/test-evidence/*`, and full monorepo verification suite run |

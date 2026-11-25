@@ -1,0 +1,16 @@
+{
+  "proposed": [
+    { "key": "i1", "drug_id": "DRG-BRUFEN-400" },
+    { "key": "i2", "drug_id": "DRG-ASPOCID-75" }
+  ],
+  "current": [
+    { "key": "m1", "drug_id": "DRG-MAREVAN-5", "from_restricted_record": false }
+  ],
+  "allergies": [
+    { "allergen_type": "drug_class", "allergen_code": "CLS-PENICILLINS", "severity": "anaphylaxis" }
+  ],
+  "conditions": [
+    { "icd10_code": "N18.4" }
+  ],
+  "locale": "en"
+}

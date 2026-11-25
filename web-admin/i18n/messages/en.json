@@ -1,0 +1,198 @@
+{
+  "app": {
+    "name": "SmartHealth",
+    "tagline": "One Identity. One Medical Record. Zero-Trust Security."
+  },
+  "nav": {
+    "common": {
+      "language": "العربية",
+      "logout": "Sign out",
+      "back": "Back",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "retry": "Try again",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeEmergency": "Emergency"
+    },
+    "doctor": {
+      "dashboard": "Dashboard",
+      "patients": "Patients",
+      "redeem": "Share Code",
+      "prescriptions": "Prescriptions"
+    },
+    "pharmacy": {
+      "verify": "Verify & Dispense",
+      "history": "Dispense History"
+    },
+    "er": {
+      "console": "ER Console"
+    },
+    "admin": {
+      "overview": "KPIs",
+      "users": "Users & Staff",
+      "facilities": "Facilities",
+      "audit": "Audit Log",
+      "emergencyReview": "ER Review",
+      "securityFlags": "Security Flags"
+    }
+  },
+  "auth": {
+    "loginTitle": "Clinical Staff Sign In",
+    "loginSubtitle": "Sign in with your verified email and password, followed by TOTP MFA.",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "mfaTitle": "Two-Factor Verification (TOTP)",
+    "mfaHint": "Enter the 6-digit code from your authenticator app.",
+    "mfaEnrollTitle": "Enroll Two-Factor Authentication",
+    "mfaCode": "Verification code",
+    "mfaVerifyBtn": "Verify & continue",
+    "reauthTitle": "Step-up TOTP verification required",
+    "reauthBody": "Confirm your current authenticator code to proceed with this sensitive action.",
+    "sessionExpiringTitle": "Session timing out",
+    "sessionExpiringBody": "You will be signed out in {seconds}s to protect patient data.",
+    "staySignedIn": "Stay signed in",
+    "notAuthorizedTitle": "Not authorized",
+    "notAuthorizedLicense": "Your clinical license is not currently active or verified."
+  },
+  "doctor": {
+    "welcome": "Welcome, Doctor",
+    "searchPlaceholder": "Search MRN (SH-...) or 14-digit National ID...",
+    "redeemCta": "Redeem share code",
+    "redeemTitle": "Open patient chart with share code",
+    "mrnLabel": "Medical Record Number (MRN)",
+    "shareCodeLabel": "6-digit share code",
+    "redeemSubmit": "Unlock chart",
+    "emptyPatients": "No active granted patients yet. Ask the patient for a share code.",
+    "activeGrants": "Active grants",
+    "rxToday": "Issued today",
+    "overridesWeek": "Overrides (7d)",
+    "expiringSoon": "Grants expiring soon",
+    "askRenew": "Ask patient to renew share code",
+    "restrictedChip": "{count} restricted record(s) hidden by patient",
+    "tabs": {
+      "summary": "Summary",
+      "history": "Medical History",
+      "prescribe": "E-Prescribe"
+    },
+    "criticalBanner": {
+      "bloodType": "Blood Type",
+      "selfReported": "Self-reported",
+      "confirmed": "Confirmed",
+      "allergies": "Allergies",
+      "conditions": "Chronic conditions",
+      "medications": "Current medications",
+      "noAllergies": "No allergies recorded"
+    },
+    "grantRevokedRedirect": "Access grant revoked by patient. Returned to patient search."
+  },
+  "rx": {
+    "builderTitle": "Dynamic E-Prescription Builder",
+    "searchDrug": "Search drug by brand or generic name...",
+    "controlledBadge": "Controlled",
+    "dose": "Dose",
+    "route": "Route",
+    "frequency": "Frequency",
+    "durationDays": "Days",
+    "quantity": "Quantity",
+    "instructions": "Instructions",
+    "allowSub": "Allow generic substitution",
+    "addDrug": "Add item",
+    "notesToPharmacist": "Notes to pharmacist",
+    "safetyPanelTitle": "Live Clinical Safety Alerts",
+    "checking": "Checking interactions & allergies...",
+    "noAlerts": "No drug interactions or allergy alerts detected",
+    "unavailableBanner": "Automated safety check unavailable — review clinically and attest below.",
+    "manualAttest": "I confirm manual clinical review of allergies, conditions, and active meds.",
+    "overrideBtn": "Document override",
+    "overriddenBadge": "Override documented",
+    "overrideDialogTitle": "Document Clinical Override Justification",
+    "overrideReason": "Reason",
+    "overrideReasons": {
+      "benefit_outweighs_risk": "Clinical benefit outweighs risk",
+      "allergy_disputed": "Reported allergy disputed",
+      "desensitisation_protocol": "Desensitisation protocol",
+      "monitored_setting": "Closely monitored setting",
+      "other": "Other clinical reason"
+    },
+    "overrideJustification": "Clinical justification (min 15 chars & 3 words)",
+    "overrideAck": "I take clinical responsibility for overriding this alert",
+    "signAndIssue": "Sign & Issue Prescription",
+    "issuedSuccess": "Prescription cryptographically signed & issued",
+    "paperCodeLabel": "Paper verification code (shown once)",
+    "printSummary": "Print patient summary",
+    "restrictedMedNote": "Involves an active medication from a restricted record"
+  },
+  "pharmacy": {
+    "selectFacility": "Select active pharmacy branch",
+    "verifyTitle": "Verify & Dispense Prescription",
+    "tabScan": "QR / Pickup Token",
+    "tabManual": "Rx Number + Code",
+    "scanPlaceholder": "Scan or paste SH1. pickup token",
+    "rxNumber": "Rx Number",
+    "paperCode": "Paper Code (6 chars)",
+    "verifyBtn": "Verify Prescription",
+    "presenceSms": "Send SMS OTP to patient",
+    "otpPrompt": "Enter patient OTP code",
+    "validBanner": "Authentic Ed25519 Signed Prescription",
+    "doNotDispense": "FAILED AUTHENTICITY CHECK — Do NOT dispense",
+    "doNotDispenseBody": "The digital signature failed verification. Report potential tampering.",
+    "prescriberInvalid": "Prescriber licence invalid — contact the patient's doctor.",
+    "alreadyDispensed": "Prescription already fully dispensed",
+    "expired": "Prescription expired",
+    "cancelled": "Prescription cancelled by doctor",
+    "leaseHeld": "Currently being prepared at another pharmacy",
+    "proceedAnyway": "Proceed anyway",
+    "dispenseNow": "Dispense now",
+    "remaining": "Remaining",
+    "counselling": "Patient counselling provided",
+    "dispenseSubmit": "Confirm Dispense",
+    "offlineBanner": "Offline: authenticity checks work via cached JWKS, dispensing is disabled."
+  },
+  "er": {
+    "title": "SmartHealth ER Console (High Contrast)",
+    "modeFace": "Face Biometrics (AI)",
+    "modeCard": "Emergency Card (QR)",
+    "modeNationalId": "National ID",
+    "reasonLabel": "Break-glass reason",
+    "reasons": {
+      "unconscious": "Unconscious",
+      "unable_to_communicate": "Unable to communicate",
+      "altered_mental_status": "Altered mental status",
+      "language_barrier": "Language barrier",
+      "other": "Other"
+    },
+    "openSession": "Open Emergency Session",
+    "cardPayloadLabel": "Signed Emergency Card QR payload (SHEC1.)",
+    "closedNotice": "Closed emergency profile scope: blood type, allergies, chronic conditions & active meds only.",
+    "extendSession": "Extend Session",
+    "closeSession": "Close Session",
+    "contactsTitle": "Emergency Contacts"
+  },
+  "admin": {
+    "title": "Platform Governance & Audit Console",
+    "noPhiNotice": "Zero-PHI Admin Isolation: no patient diagnoses or clinical notes are exposed here.",
+    "activePatients": "Active Patients",
+    "rxIssued7d": "Rx Issued (7d)",
+    "dispenseRate": "Dispense Rate",
+    "auditIntegrityOk": "SHA-256 Hash Chain Verified",
+    "auditIntegrityBroken": "Tamper detected at audit sequence #{seq}",
+    "inviteUser": "Invite Staff User",
+    "approveAction": "Approve (2-person rule)",
+    "verifyLicense": "Verify License",
+    "revokeLicense": "Revoke License"
+  },
+  "errors": {
+    "GENERIC": "Something went wrong. Please try again.",
+    "OFFLINE": "No internet connection detected.",
+    "AUTH_TOKEN_MISSING": "Authentication required.",
+    "AUTH_MFA_REQUIRED": "Two-factor TOTP authentication is required.",
+    "AUTH_STEP_UP_REQUIRED": "Fresh MFA verification required to complete this action.",
+    "ACCESS_GRANT_REQUIRED": "An active patient access grant is required.",
+    "RX_ALERT_OVERRIDE_REQUIRED": "Clinical override justification required for blocking alerts.",
+    "RX_QUANTITY_EXCEEDED": "Requested quantity exceeds remaining balance.",
+    "RX_SIGNATURE_INVALID": "Signature verification failed — do not proceed."
+  }
+}

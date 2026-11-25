@@ -1,0 +1,13 @@
+{
+  "id": "0b8f2f0e-6b8a-4a5f-9a77-0f5a8c1d2e3f",
+  "role": "patient",
+  "status": "active",
+  "full_name": "Mona Adel",
+  "email": "mona@example.com",
+  "phone": "+201001234567",
+  "preferred_locale": "ar",
+  "mfa": { "enrolled": false, "aal": "aal1" },
+  "patient": { "mrn": "SH-7K2M9Q4D", "onboarded": true, "is_minor": false },
+  "practitioner": null,
+  "permissions": ["profile:read:self", "patient_record:read:self"]
+}

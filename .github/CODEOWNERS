@@ -1,0 +1,11 @@
+# Default owners
+* @Peter-Eshak-Abdo
+
+# Security-critical paths require Security Lead approval (role-01 §12)
+/supabase/                              @Peter-Eshak-Abdo
+/backend-api/src/security/              @Peter-Eshak-Abdo
+/backend-api/src/modules/emergency/     @Peter-Eshak-Abdo
+/ai-service/app/face/                   @Peter-Eshak-Abdo
+/packages/contracts/                    @Peter-Eshak-Abdo
+/.agents/                               @Peter-Eshak-Abdo
+/AGENTS.md                              @Peter-Eshak-Abdo

@@ -1,0 +1,10 @@
+{
+  "id_document_type": "national_id",
+  "id_document_number": "29001011200018",
+  "date_of_birth": "1990-01-01",
+  "sex": "female",
+  "blood_type": "O+",
+  "consents": [
+    { "type": "terms_of_service", "version": "2026-10" }
+  ]
+}

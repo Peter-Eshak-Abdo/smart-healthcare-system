@@ -1,0 +1,33 @@
+name: Deploy Production
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r lint
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+      - run: pnpm contracts:check
+      - name: Verify Compose & Production Env Contracts
+        run: docker compose -f infra/docker-compose.prod.yml config -q
+      - name: Apply Supabase Production Migrations
+        if: env.PROD_SUPABASE_DB_URL != ''
+        env:
+          PROD_SUPABASE_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+        run: npx supabase db push --db-url "$PROD_SUPABASE_DB_URL"

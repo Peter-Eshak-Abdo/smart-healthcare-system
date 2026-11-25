@@ -1,0 +1,4 @@
+packages:
+  - "packages/*"
+  - "backend-api"
+  - "web-admin"

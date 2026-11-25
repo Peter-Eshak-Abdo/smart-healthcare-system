@@ -1,0 +1,18 @@
+{
+  "triage": {
+    "level": "soon",
+    "red_flag": false,
+    "rule_ids": [],
+    "emergency_action": null
+  },
+  "reply": {
+    "text": "الأعراض دي ممكن تكون مرتبطة بأكتر من سبب ويفضل المتابعة مع طبيب.",
+    "self_care": ["اشرب سوائل وارتاح"],
+    "warning_signs": ["صداع مفاجئ شديد"]
+  },
+  "recommended_specialty_code": "general_practice",
+  "specialty_reason": "تقييم مبدئي للأعراض",
+  "follow_up_questions": ["الأعراض بدأت من امتى؟"],
+  "llm_used": true,
+  "validator": { "violations": [], "regenerated": false, "fallback_used": false }
+}

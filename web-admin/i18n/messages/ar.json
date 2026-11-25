@@ -1,0 +1,198 @@
+{
+  "app": {
+    "name": "سمارت هيلث",
+    "tagline": "هوية واحدة. ملف واحد. أمان كامل."
+  },
+  "nav": {
+    "common": {
+      "language": "English",
+      "logout": "تسجيل الخروج",
+      "back": "رجوع",
+      "save": "احفظ",
+      "cancel": "إلغاء",
+      "close": "اقفل",
+      "retry": "جرّب تاني",
+      "themeLight": "نهاري",
+      "themeDark": "ليلي",
+      "themeEmergency": "طوارئ"
+    },
+    "doctor": {
+      "dashboard": "الرئيسية",
+      "patients": "المرضى",
+      "redeem": "كود المريض",
+      "prescriptions": "الروشتات"
+    },
+    "pharmacy": {
+      "verify": "تحقق وصرف",
+      "history": "سجل الصرف"
+    },
+    "er": {
+      "console": "مكتب الطوارئ"
+    },
+    "admin": {
+      "overview": "الإحصائيات",
+      "users": "المستخدمين",
+      "facilities": "المنشآت",
+      "audit": "سجل العمليات",
+      "emergencyReview": "مراجعة الطوارئ",
+      "securityFlags": "تنبيهات الأمان"
+    }
+  },
+  "auth": {
+    "loginTitle": "تسجيل دخول الطاقم الطبي",
+    "loginSubtitle": "ادخل بالبريد الإلكتروني وكلمة السر وهنطلب منك كود التوثيق.",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة السر",
+    "signIn": "دخول",
+    "mfaTitle": "التحقق بخطوتين (TOTP)",
+    "mfaHint": "اكتب الكود المكون من 6 أرقام من تطبيق المصادقة.",
+    "mfaEnrollTitle": "تفعيل التحقق بخطوتين لأول مرة",
+    "mfaCode": "كود التحقق",
+    "mfaVerifyBtn": "تأكيد الدخول",
+    "reauthTitle": "تأكيد إضافي للعملية الحساسة",
+    "reauthBody": "دخل كود تطبيق المصادقة عشان نكمل إصدار الروشتة أو التعديل.",
+    "sessionExpiringTitle": "الجلسة قربت تخلص",
+    "sessionExpiringBody": "هنسجل خروجك تلقائياً خلال {seconds} ثانية عشان حماية بيانات المرضى.",
+    "staySignedIn": "كمّل في الجلسة",
+    "notAuthorizedTitle": "مش مسموح بالوصول للصفحة دي",
+    "notAuthorizedLicense": "ترخيص مزاولة المهنة غير مفعّل أو موقوف حالياً."
+  },
+  "doctor": {
+    "welcome": "أهلاً يا دكتور",
+    "searchPlaceholder": "دوّر برقم الملف (SH-) أو الرقم القومي (14 رقم)...",
+    "redeemCta": "دخّل كود المريض",
+    "redeemTitle": "فتح ملف مريض بكود المشاركة",
+    "mrnLabel": "رقم الملف الطبي (MRN)",
+    "shareCodeLabel": "كود المشاركة (6 أرقام)",
+    "redeemSubmit": "افتح الملف",
+    "emptyPatients": "مفيش مرضى متاحين لسه. اطلب من المريض كود المشاركة.",
+    "activeGrants": "أذون نشطة",
+    "rxToday": "روشتات النهارده",
+    "overridesWeek": "تجاوزات الأسبوع",
+    "expiringSoon": "أذون قربت تنتهي",
+    "askRenew": "اطلب من المريض تجديد الكود",
+    "restrictedChip": "{count} سجل مقيد (مخفي بواسطة المريض)",
+    "tabs": {
+      "summary": "الملخص",
+      "history": "السجل الطبي",
+      "prescribe": "كتابة روشتة"
+    },
+    "criticalBanner": {
+      "bloodType": "فصيلة الدم",
+      "selfReported": "بلاغ ذاتي",
+      "confirmed": "موثّق",
+      "allergies": "الحساسية",
+      "conditions": "أمراض مزمنة",
+      "medications": "أدوية حالية",
+      "noAllergies": "مفيش حساسية مسجلة"
+    },
+    "grantRevokedRedirect": "المريض لغى إذن الاطلاع. رجّعناك لصفحة البحث."
+  },
+  "rx": {
+    "builderTitle": "كتابة روشتة إلكترونية",
+    "searchDrug": "دوّر على اسم الدوا (تجاري أو علمي)...",
+    "controlledBadge": "دوا مراقب",
+    "dose": "الجرعة",
+    "route": "طريقة الاستعمال",
+    "frequency": "التكرار",
+    "durationDays": "المدة (يوم)",
+    "quantity": "الكمية",
+    "instructions": "تعليمات للمريض",
+    "allowSub": "السماح بالبديل المكافئ",
+    "addDrug": "أضف دوا",
+    "notesToPharmacist": "ملاحظات للصيدلي",
+    "safetyPanelTitle": "فحص السلامة الدوائية المباشر",
+    "checking": "بنتأكد من التفاعلات والحساسية…",
+    "noAlerts": "مفيش تعارضات دوائية أو تحذيرات مسجلة ✓",
+    "unavailableBanner": "فحص السلامة الآلي واقف دلوقتي — راجع التفاعلات يدوياً وأكّد.",
+    "manualAttest": "أقر إني راجعت تاريخ المريض والحساسية يدوياً وأتحمل المسؤولية.",
+    "overrideBtn": "وثّق تجاوز التنبيه",
+    "overriddenBadge": "تم توثيق التجاوز",
+    "overrideDialogTitle": "توثيق السبب الطبي لتجاوز التنبيه",
+    "overrideReason": "السبب",
+    "overrideReasons": {
+      "benefit_outweighs_risk": "الفائدة العلاجية أكبر من الخطورة",
+      "allergy_disputed": "الحساسية غير مؤكدة إكلينيكياً",
+      "desensitisation_protocol": "تحت بروتوكول إزالة حساسية",
+      "monitored_setting": "المريض تحت متابعة لصيقة",
+      "other": "سبب طبي آخر"
+    },
+    "overrideJustification": "التفاصيل الطبية (15 حرف على الأقل و 3 كلمات)",
+    "overrideAck": "أتحمل المسؤولية الإكلينيكية عن القرار ده",
+    "signAndIssue": "وقّع وأصدر الروشتة",
+    "issuedSuccess": "تم إصدار وتوقيع الروشتة بنجاح",
+    "paperCodeLabel": "كود التأكيد الورقي (يظهر مرة واحدة فقط)",
+    "printSummary": "اطبع ملخص للمريض",
+    "restrictedMedNote": "يتعارض مع دوا نشط من سجل مقيد"
+  },
+  "pharmacy": {
+    "selectFacility": "انت شغّال في أنهي صيدلية النهارده؟",
+    "verifyTitle": "تحقق من روشتة وصرفها",
+    "tabScan": "امسح كود QR",
+    "tabManual": "رقم الروشتة + الكود",
+    "scanPlaceholder": "الزق رمز الاستلام SH1. أو استخدم الكاميرا",
+    "rxNumber": "رقم الروشتة",
+    "paperCode": "كود الورقة (6 حروف)",
+    "verifyBtn": "تحقق الآن",
+    "presenceSms": "ابعت كود SMS للمريض",
+    "otpPrompt": "اكتب كود الـ SMS اللي وصل للمريض",
+    "validBanner": "روشتة سليمة وموثّقة ✓",
+    "doNotDispense": "الروشتة دي مش سليمة — ماتصرفهاش",
+    "doNotDispenseBody": "التوقيع الإلكتروني مش مطابق. ممكن تكون متزوّرة أو اتعدّلت.",
+    "prescriberInvalid": "ترخيص الدكتور مش ساري — كلّم دكتور المريض.",
+    "alreadyDispensed": "الروشتة اتصرفت بالكامل قبل كده",
+    "expired": "الروشتة انتهت صلاحيتها",
+    "cancelled": "الدكتور لغى الروشتة دي",
+    "leaseHeld": "الروشتة دي بتتجهّز في صيدلية تانية دلوقتي",
+    "proceedAnyway": "كمّل برضه",
+    "dispenseNow": "هتصرف دلوقتي",
+    "remaining": "الباقي",
+    "counselling": "شرحت للمريض طريقة الاستخدام والجرعة",
+    "dispenseSubmit": "تأكيد الصرف",
+    "offlineBanner": "مفيش نت: تقدر تتأكد إن الروشتة سليمة، بس الصرف محتاج نت."
+  },
+  "er": {
+    "title": "وحدة طوارئ سمارت هيلث (High Contrast)",
+    "modeFace": "مسح الوجه (AI)",
+    "modeCard": "كارت الطوارئ (QR)",
+    "modeNationalId": "الرقم القومي",
+    "reasonLabel": "سبب دخول الطوارئ",
+    "reasons": {
+      "unconscious": "فاقد الوعي",
+      "unable_to_communicate": "مش قادر يتكلم",
+      "altered_mental_status": "مش في وعيه الكامل",
+      "language_barrier": "مشكلة لغة",
+      "other": "سبب تاني"
+    },
+    "openSession": "افتح ملف الطوارئ",
+    "cardPayloadLabel": "بيانات كارت الطوارئ SHEC1.",
+    "closedNotice": "عرض طوارئ محدد فقط: فصيلة الدم، الحساسية، الأمراض المزمنة، والأدوية الحالية.",
+    "extendSession": "تمديد الجلسة",
+    "closeSession": "اقفل جلسة الطوارئ",
+    "contactsTitle": "جهات اتصال الطوارئ"
+  },
+  "admin": {
+    "title": "لوحة إدارة النظام والرقابة",
+    "noPhiNotice": "حماية الخصوصية مفعّلة: مفيش أي بيانات مرضية ظاهرة في لوحة الإدارة.",
+    "activePatients": "المرضى النشطين",
+    "rxIssued7d": "الروشتات (آخر 7 أيام)",
+    "dispenseRate": "نسبة الصرف",
+    "auditIntegrityOk": "سلسلة التدقيق سليمة (SHA-256) ✓",
+    "auditIntegrityBroken": "تحذير: تم رصد تعديل في السجل رقم #{seq}",
+    "inviteUser": "دعوة عضو جديد",
+    "approveAction": "اعتماد (قاعدة الشخصين)",
+    "verifyLicense": "تفعيل الترخيص",
+    "revokeLicense": "إلغاء الترخيص"
+  },
+  "errors": {
+    "GENERIC": "حصلت مشكلة غير متوقعة، جرّب تاني.",
+    "OFFLINE": "مفيش اتصال بالإنترنت حالياً.",
+    "AUTH_TOKEN_MISSING": "مطلوب تسجيل الدخول الأول.",
+    "AUTH_MFA_REQUIRED": "مطلوب تأكيد كود المصادقة بخطوتين.",
+    "AUTH_STEP_UP_REQUIRED": "مطلوب إعادة تأكيد كلمة السر أو الكود لإتمام الخطوة.",
+    "ACCESS_GRANT_REQUIRED": "لازم إذن وصول نشط من المريض الأول.",
+    "RX_ALERT_OVERRIDE_REQUIRED": "لازم توثق سبب طبي لتجاوز التنبيهات الحرجة.",
+    "RX_QUANTITY_EXCEEDED": "الكمية المطلوبة أكبر من الباقي في الروشتة.",
+    "RX_SIGNATURE_INVALID": "التوقيع الإلكتروني غير مطابق — أوقف الإجراء فوراً."
+  }
+}
