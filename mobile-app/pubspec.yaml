@@ -21,7 +21,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   hive_ce: ^2.10.1
   hive_ce_flutter: ^2.2.0
-  camera: ^0.11.1
+  camera: ^0.12.2
   mobile_scanner: ^6.0.10
   qr_flutter: ^4.1.0
   cryptography: ^2.7.0
