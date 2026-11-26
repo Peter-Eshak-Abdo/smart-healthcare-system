@@ -45,13 +45,6 @@
       "collectionGroup": "system_logs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "seq", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "system_logs",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "action", "order": "ASCENDING" },
         { "fieldPath": "occurred_at", "order": "DESCENDING" }
       ]

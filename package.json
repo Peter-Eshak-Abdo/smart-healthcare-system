@@ -26,5 +26,8 @@
     "seed:firebase": "npm run seed:firebase -w backend-api",
     "dev:backend": "npm run dev -w backend-api",
     "dev:web": "npm run dev -w web-admin"
+  },
+  "dependencies": {
+    "firebase": "^13.4.0"
   }
 }

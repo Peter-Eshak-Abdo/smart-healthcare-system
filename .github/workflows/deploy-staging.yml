@@ -27,7 +27,7 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_STAGING }}
         run: |
           echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-sa.json
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx --yes firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project "$FIREBASE_PROJECT_ID"
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx --yes firebase-tools deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID"
           rm -f /tmp/firebase-sa.json
       - name: Trigger Render Staging Deploy
         if: env.RENDER_DEPLOY_HOOK_STAGING != ''

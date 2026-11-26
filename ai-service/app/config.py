@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     internal_jwt_public_key: str = ""
     models_dir: Path = Path("models")
     verify_model_checksums: bool = False
-    red_flags_path: Path = Path("../packages/contracts/red-flags.yaml")
+    red_flags_path: Path = Path("red-flags.yaml")
     face_transform_key_version: int = 1
     face_transform_seed_1: str = ""
     face_transform_seed_2: str = ""

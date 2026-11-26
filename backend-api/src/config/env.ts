@@ -1,4 +1,35 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const backendRoot = path.resolve(__dirname, '../..');
+
+function hydrateEnvFiles(target: NodeJS.ProcessEnv): void {
+  if (target.VITEST || target.NODE_ENV === 'test') return;
+  for (const filename of ['.env', '.env.local']) {
+    const filePath = path.join(backendRoot, filename);
+    if (!fs.existsSync(filePath)) continue;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      if (!key || target[key] !== undefined) continue;
+      let val = trimmed.slice(eq + 1).trim();
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      target[key] = val;
+    }
+  }
+}
 
 const base64Key32 = z
   .string()
@@ -19,6 +50,8 @@ export const EnvSchema = z
     FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(10).optional(),
     FIREBASE_STORAGE_BUCKET: z.string().min(3).optional(),
     REDIS_URL: z.string().optional(),
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(10).optional(),
     KEK_CURRENT_ID: z.string().regex(/^k\d+$/).default('k1'),
     KEK_K1: base64Key32.optional(),
     KEK_K2: base64Key32.optional(),
@@ -49,6 +82,10 @@ export const EnvSchema = z
 
 export type AppEnv = z.infer<typeof EnvSchema>;
 
-export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
+export function loadEnv(source?: NodeJS.ProcessEnv): AppEnv {
+  if (!source) {
+    hydrateEnvFiles(process.env);
+    return EnvSchema.parse(process.env);
+  }
   return EnvSchema.parse(source);
 }

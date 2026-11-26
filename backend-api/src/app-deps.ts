@@ -82,7 +82,10 @@ export function createAppDeps(
 
   const redisBundle = overrides.redis
     ? { raw: null, client: overrides.redis }
-    : createRedisClient(env.REDIS_URL, logger);
+    : createRedisClient(env.REDIS_URL, logger, {
+        url: env.UPSTASH_REDIS_REST_URL,
+        token: env.UPSTASH_REDIS_REST_TOKEN,
+      });
 
   const keyring = overrides.keyring ?? createKeyring(env);
   const fieldCipher = overrides.fieldCipher ?? createFieldCipher(keyring);

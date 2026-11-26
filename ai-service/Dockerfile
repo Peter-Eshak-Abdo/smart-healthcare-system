@@ -6,7 +6,7 @@ WORKDIR /app
 RUN useradd -m -u 1000 user
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY --chown=user pyproject.toml ./
+COPY --chown=user pyproject.toml red-flags.yaml ./
 RUN uv sync --no-dev --no-install-project
 
 COPY --chown=user app ./app

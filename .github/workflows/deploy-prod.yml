@@ -22,14 +22,14 @@ jobs:
       - run: npm run test --workspaces
       - run: npm run contracts:check
       - run: npm run build
-      - name: Deploy Firestore Rules, Indexes & Storage (Production)
+      - name: Deploy Firestore Rules & Indexes (Production)
         if: env.FIREBASE_SERVICE_ACCOUNT_PROD != '' && env.FIREBASE_PROJECT_ID_PROD != ''
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_PROD }}
         run: |
           echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-sa.json
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx --yes firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project "$FIREBASE_PROJECT_ID"
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json npx --yes firebase-tools deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID"
           rm -f /tmp/firebase-sa.json
       - name: Trigger Render Production Deploy
         if: env.RENDER_DEPLOY_HOOK_PROD != ''

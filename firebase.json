@@ -3,9 +3,6 @@
     "rules": "firebase/firestore.rules",
     "indexes": "firebase/firestore.indexes.json"
   },
-  "storage": {
-    "rules": "firebase/storage.rules"
-  },
   "hosting": {
     "public": "mobile-app/build/web",
     "ignore": [
@@ -64,5 +61,14 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "smart-healthcare-system",
+        "supportEmail": "support@smart-healthcare-system.firebaseapp.com"
+      }
+    }
   }
 }
