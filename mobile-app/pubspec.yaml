@@ -22,7 +22,7 @@ dependencies:
   hive_ce: ^2.10.1
   hive_ce_flutter: ^2.2.0
   camera: ^0.11.1
-  mobile_scanner: ^6.0.10
+  mobile_scanner: ^7.5.0
   qr_flutter: ^4.1.0
   cryptography: ^2.7.0
   connectivity_plus: ^6.1.3
