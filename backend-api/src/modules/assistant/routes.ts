@@ -6,6 +6,7 @@ import {
 } from '@smarthealth/contracts';
 import { Router } from 'express';
 import type { AppDeps } from '../../app-deps.js';
+import { consumeAiQuota } from '../../ai/quota-guard.js';
 import { requireDb } from '../../firebase/firestore-helpers.js';
 import {
   COLLECTIONS,
@@ -136,6 +137,22 @@ export function assistantRoutes(deps: AppDeps): Router {
         if (!patSnap.exists) throw new AppError('RESOURCE_NOT_FOUND');
         const pat = patSnap.data() as PatientDoc;
 
+        await consumeAiQuota({
+          db,
+          env: deps.env,
+          userId: auth.userId,
+          bucket: 'patient_chat',
+          locale: session.locale,
+        });
+
+        await consumeAiQuota({
+          db,
+          env: deps.env,
+          userId: auth.userId,
+          bucket: 'patient_chat',
+          locale: session.locale,
+        });
+
         const msgCol = sessionRef.collection('messages');
         const recentSnap = await msgCol.orderBy('created_at', 'asc').limit(20).get();
         const history = recentSnap.docs.slice(-10).map((d) => {
@@ -184,6 +201,27 @@ export function assistantRoutes(deps: AppDeps): Router {
         } | null = null;
 
         try {
+          const recSnap = await db
+            .collection(COLLECTIONS.medicalRecords)
+            .where('patient_id', '==', auth.userId)
+            .get();
+          const patRecords = recSnap.docs.map((d) => d.data() as {
+            kind?: string;
+            status?: string;
+            allergen_code?: string | null;
+            icd10_code?: string | null;
+            drug_id?: string | null;
+          });
+          const allergies = patRecords
+            .filter((r) => r.kind === 'allergy' && r.status !== 'refuted' && r.allergen_code)
+            .map((r) => r.allergen_code!);
+          const conditions = patRecords
+            .filter((r) => r.kind === 'condition' && r.status === 'active' && r.icd10_code)
+            .map((r) => r.icd10_code!);
+          const activeMedications = patRecords
+            .filter((r) => r.kind === 'medication' && r.status === 'active' && r.drug_id)
+            .map((r) => r.drug_id!);
+
           const aiTriage = await deps.aiClient.triageAssistant({
             session_ref: createHash('sha256').update(sessionId).digest('hex'),
             locale: session.locale,
@@ -193,6 +231,9 @@ export function assistantRoutes(deps: AppDeps): Router {
               age_band: ageBandOf(pat.date_of_birth),
               sex: pat.sex,
               pregnant: null,
+              allergies,
+              conditions,
+              activeMedications,
             },
           });
 

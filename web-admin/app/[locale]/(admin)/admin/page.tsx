@@ -1,14 +1,15 @@
 'use client';
 
-import type { AdminMetricsResponseSchema } from '@smarthealth/contracts';
+import type { AdminAiMetricsResponseSchema, AdminMetricsResponseSchema } from '@smarthealth/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { Activity, FileText, ShieldCheck, Users } from 'lucide-react';
+import { Activity, Cpu, FileText, ShieldCheck, Users } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { z } from 'zod';
 import { ProblemAlert } from '@/components/common/ProblemAlert';
 import { apiFetch } from '@/lib/api/client';
 
 type AdminMetrics = z.infer<typeof AdminMetricsResponseSchema>;
+type AdminAiMetrics = z.infer<typeof AdminAiMetricsResponseSchema>;
 
 export default function AdminOverviewPage() {
   const locale = useLocale() as 'ar' | 'en';
@@ -18,6 +19,11 @@ export default function AdminOverviewPage() {
   const query = useQuery({
     queryKey: ['admin-metrics'],
     queryFn: () => apiFetch<AdminMetrics>('/v1/admin/metrics', { locale }),
+  });
+
+  const aiMetricsQuery = useQuery({
+    queryKey: ['admin-ai-metrics'],
+    queryFn: () => apiFetch<AdminAiMetrics>('/v1/admin/ai-metrics', { locale }),
   });
 
   return (
@@ -100,6 +106,51 @@ export default function AdminOverviewPage() {
               </table>
             </div>
           </section>
+
+          {aiMetricsQuery.data && (
+            <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 text-base font-bold text-foreground">
+                <Cpu className="h-5 w-5 text-primary" />
+                <h2>
+                  {isEn ? 'AI Token & Cache Efficiency (Today)' : 'كفاءة استهلاك التوكنز والكاش (اليوم)'}
+                </h2>
+              </div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-4">
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <p className="text-xs text-muted-foreground">
+                    {isEn ? 'Cache Hit Rate' : 'نسبة إصابة الكاش'}
+                  </p>
+                  <p className="clinical-num mt-1 text-2xl font-extrabold text-emerald-600">
+                    {(aiMetricsQuery.data.cache_hit_rate * 100).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <p className="text-xs text-muted-foreground">
+                    {isEn ? 'Tokens Used Today' : 'التوكنز المستهلكة اليوم'}
+                  </p>
+                  <p className="clinical-num mt-1 text-2xl font-extrabold">
+                    {aiMetricsQuery.data.total_tokens_used_today}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <p className="text-xs text-muted-foreground">
+                    {isEn ? 'Est. Tokens Saved' : 'التوكنز الموفرة'}
+                  </p>
+                  <p className="clinical-num mt-1 text-2xl font-extrabold text-primary">
+                    {aiMetricsQuery.data.estimated_tokens_saved_today}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <p className="text-xs text-muted-foreground">
+                    {isEn ? '0-Token Requests' : 'طلبات بدون توكنز'}
+                  </p>
+                  <p className="clinical-num mt-1 text-2xl font-extrabold">
+                    {aiMetricsQuery.data.zero_token_requests_today}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

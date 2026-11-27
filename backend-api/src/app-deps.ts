@@ -15,7 +15,6 @@ import { createAuthContextService, type AuthContextService } from './security/au
 import { createFieldCipher, type FieldCipher } from './security/crypto/field-cipher.js';
 import { createKeyring, type Keyring } from './security/crypto/keyring.js';
 import { createSigner, type Signer } from './security/crypto/signer.js';
-import { createInternalJwtSigner, type InternalJwtSigner } from './security/internal-jwt.js';
 import { createAccessTokenVerifier, type AccessTokenVerifier } from './security/jwt.js';
 import { createStepUpService, type StepUpService } from './security/step-up.js';
 import { createLogger } from './shared/logger.js';
@@ -38,7 +37,6 @@ export interface AppDeps {
   verifyJwt: AccessTokenVerifier;
   authContext: AuthContextService;
   stepUp: StepUpService;
-  internalJwt: InternalJwtSigner;
   rateLimit: RateLimitService;
   aiReadiness?: AiReadinessPort | undefined;
   aiClient: AiClientPort;
@@ -106,9 +104,8 @@ export function createAppDeps(
         });
 
   const stepUp = overrides.stepUp ?? createStepUpService(keyring, signer, redisBundle.client);
-  const internalJwt = overrides.internalJwt ?? createInternalJwtSigner(keyring);
   const rateLimit = overrides.rateLimit ?? createRateLimitService(redisBundle.raw);
-  const aiClient = overrides.aiClient ?? new AiClient(env, internalJwt);
+  const aiClient = overrides.aiClient ?? new AiClient(env);
 
   return {
     env,
@@ -124,7 +121,6 @@ export function createAppDeps(
     verifyJwt,
     authContext,
     stepUp,
-    internalJwt,
     rateLimit,
     aiClient,
     aiReadiness: overrides.aiReadiness,

@@ -1,0 +1,153 @@
+{
+  "ddi_rules": [
+    {
+      "rule_id": "DDI-WARF-NSAID-01",
+      "ingredient_a": "ING-WARFARIN",
+      "ingredient_b": "ING-IBUPROFEN",
+      "severity": "contraindicated",
+      "mechanism_en": "NSAIDs inhibit platelet aggregation and displace warfarin from plasma proteins, sharply raising GI & systemic bleeding risk.",
+      "mechanism_ar": "الإيبوبروفين مع الوارفارين يضاعف خطر النزيف المعوي والداخلي بشكل خطير.",
+      "management_en": "Avoid concurrent use. Prefer Paracetamol (<=2g/day) for pain/fever and monitor INR.",
+      "management_ar": "ممنوع الجمع بينهما. البديل الآمن للألم هو باراسيتامول بجرعة محدودة مع متابعة سيولة الدم (INR).",
+      "alternatives_en": ["Paracetamol (Panadol/Abimol)"],
+      "alternatives_ar": ["باراسيتامول (بنادول أو أبيمول)"]
+    },
+    {
+      "rule_id": "DDI-WARF-DICLO-01",
+      "ingredient_a": "ING-WARFARIN",
+      "ingredient_b": "ING-DICLOFENAC",
+      "severity": "contraindicated",
+      "mechanism_en": "Diclofenac + Warfarin markedly increases risk of severe gastrointestinal and intracranial hemorrhage.",
+      "mechanism_ar": "ديكلوفيناك مع وارفارين يرفع احتمالية النزيف الحاد بشكل خطير جداً.",
+      "management_en": "Contraindicated. Substitute with Paracetamol and consult prescribing physician.",
+      "management_ar": "تداخل خطير ممنوع. استبدل المسكن بباراسيتامول بعد مراجعة الطبيب.",
+      "alternatives_en": ["Paracetamol"],
+      "alternatives_ar": ["باراسيتامول"]
+    },
+    {
+      "rule_id": "DDI-WARF-ASP-01",
+      "ingredient_a": "ING-WARFARIN",
+      "ingredient_b": "ING-ASPIRIN",
+      "severity": "major",
+      "mechanism_en": "Dual anticoagulant + antiplatelet therapy significantly increases bleeding risk unless specifically indicated.",
+      "mechanism_ar": "الجمع بين الوارفارين والأسبرين يزيد احتمالية النزيف بشكل ملحوظ.",
+      "management_en": "Use only under explicit cardiologist supervision with PPI gastroprotection and frequent INR checks.",
+      "management_ar": "لا يستخدم سوياً إلا بأمر طبيب القلب مع حماية للمعدة ومتابعة دقيقة لتحليل INR.",
+      "alternatives_en": ["Consult cardiologist before dual therapy"],
+      "alternatives_ar": ["مراجعة طبيب القلب قبل الجمع بينهما"]
+    },
+    {
+      "rule_id": "DDI-WARF-METRO-01",
+      "ingredient_a": "ING-WARFARIN",
+      "ingredient_b": "ING-METRONIDAZOLE",
+      "severity": "major",
+      "mechanism_en": "Metronidazole inhibits CYP2C9 metabolism of S-warfarin, markedly elevating INR and bleeding risk.",
+      "mechanism_ar": "الميترونيدازول (فلاجيل) يبطئ تكسير الوارفارين في الكبد مما يرفع السيولة (INR) وخطر النزيف.",
+      "management_en": "Monitor INR within 3 days and reduce warfarin dose if needed, or select alternative antibiotic.",
+      "management_ar": "يجب متابعة تحليل INR خلال 3 أيام وتعديل جرعة الوارفارين أو اختيار بديل.",
+      "alternatives_en": ["Consult physician for alternative antimicrobial"],
+      "alternatives_ar": ["استشارة الطبيب لاختيار مضاد حيوي بديل"]
+    },
+    {
+      "rule_id": "DDI-CLOP-OMEP-01",
+      "ingredient_a": "ING-CLOPIDOGREL",
+      "ingredient_b": "ING-OMEPRAZOLE",
+      "severity": "major",
+      "mechanism_en": "Omeprazole inhibits CYP2C19 conversion of Clopidogrel to its active metabolite, reducing antiplatelet efficacy.",
+      "mechanism_ar": "أوميبرازول يقلل تحويل كلوبيدوجريل (بلافكس) لصورته الفعالة، مما يقلل حماية القلب من الجلطات.",
+      "management_en": "Replace Omeprazole with Pantoprazole (Controloc) which has minimal CYP2C19 inhibition.",
+      "management_ar": "استبدل أوميبرازول بدواء بانتوبرازول (كونترولوك) لأنه لا يتعارض مع البلافكس.",
+      "alternatives_en": ["Pantoprazole (Controloc 40)"],
+      "alternatives_ar": ["بانتوبرازول (كونترولوك 40)"]
+    },
+    {
+      "rule_id": "DDI-NSAID-NSAID-01",
+      "ingredient_a": "ING-IBUPROFEN",
+      "ingredient_b": "ING-DICLOFENAC",
+      "severity": "major",
+      "mechanism_en": "Combining two systemic NSAIDs provides no extra analgesia while doubling GI ulceration and renal injury risk.",
+      "mechanism_ar": "تناول مسكنين من نفس العيلة (إيبوبروفين + ديكلوفيناك) يضاعف خطر قرحة المعدة وإجهاد الكلى بدون فائدة إضافية.",
+      "management_en": "Keep only one NSAID or switch one to Paracetamol.",
+      "management_ar": "اكتفِ بمسكن واحد فقط أو استبدل أحدهما بباراسيتامول.",
+      "alternatives_en": ["Paracetamol 500mg"],
+      "alternatives_ar": ["باراسيتامول 500 مجم"]
+    },
+    {
+      "rule_id": "DDI-NSAID-ASP-01",
+      "ingredient_a": "ING-IBUPROFEN",
+      "ingredient_b": "ING-ASPIRIN",
+      "severity": "moderate",
+      "mechanism_en": "Ibuprofen can competitively block Aspirin's cardioprotective antiplatelet binding and increase GI bleeding.",
+      "mechanism_ar": "الإيبوبروفين قد يقلل من مفعول الأسبرين الوقائي للقلب ويزيد تهيج المعدة.",
+      "management_en": "Use Paracetamol instead of Ibuprofen, or space Ibuprofen at least 2 hours after Aspirin.",
+      "management_ar": "يفضل استخدام باراسيتامول كمسكن بدلاً من إيبوبروفين.",
+      "alternatives_en": ["Paracetamol"],
+      "alternatives_ar": ["باراسيتامول"]
+    },
+    {
+      "rule_id": "DDI-AZITH-CIPRO-01",
+      "ingredient_a": "ING-AZITHROMYCIN",
+      "ingredient_b": "ING-CIPROFLOXACIN",
+      "severity": "major",
+      "mechanism_en": "Both drugs can prolong the cardiac QT interval, increasing risk of Torsades de Pointes arrhythmia.",
+      "mechanism_ar": "الجمع بين أزيثروميسين وسيبروفلوكساسين يزيد خطر اضطراب كهرباء وضربات القلب (QT prolongation).",
+      "management_en": "Avoid combination unless strictly indicated; monitor ECG.",
+      "management_ar": "تجنب الجمع بينهما إلا للضرورة القصوى مع متابعة رسم القلب.",
+      "alternatives_en": ["Amoxicillin-Clavulanate (if appropriate)"],
+      "alternatives_ar": ["أموكسيسيلين-كلافولانيك حسب التشخيص"]
+    },
+    {
+      "rule_id": "DDI-FURO-NSAID-01",
+      "ingredient_a": "ING-FUROSEMIDE",
+      "ingredient_b": "ING-IBUPROFEN",
+      "severity": "moderate",
+      "mechanism_en": "NSAIDs reduce renal prostaglandin synthesis, blunting Furosemide diuresis and risking acute kidney injury.",
+      "mechanism_ar": "المسكنات تقلل من كفاءة مدر البول (لازكس) وقد تزيد الضغط على الكلى.",
+      "management_en": "Prefer Paracetamol; if NSAID required, monitor blood pressure and renal function.",
+      "management_ar": "يفضل باراسيتامول للألم بدلاً من المسكنات.",
+      "alternatives_en": ["Paracetamol"],
+      "alternatives_ar": ["باراسيتامول"]
+    },
+    {
+      "rule_id": "DDI-ACEI-NSAID-01",
+      "ingredient_a": "ING-CAPTOPRIL",
+      "ingredient_b": "ING-DICLOFENAC",
+      "severity": "moderate",
+      "mechanism_en": "NSAIDs attenuate the antihypertensive effect of ACE inhibitors and increase nephrotoxicity risk.",
+      "mechanism_ar": "الديكلوفيناك يقلل من فعالية دواء الضغط (كابتوبريل) ويزيد الحمل على الكلى.",
+      "management_en": "Monitor BP and renal function; prefer Paracetamol for pain.",
+      "management_ar": "استبدل المسكن بباراسيتامول وتابع ضغط الدم.",
+      "alternatives_en": ["Paracetamol"],
+      "alternatives_ar": ["باراسيتامول"]
+    }
+  ],
+  "cross_reactivity_rules": [
+    {
+      "rule_id": "ALG-CROSS-PEN-CEPH",
+      "allergen_class": "CLS-PENICILLINS",
+      "target_class": "CLS-CEPHALOSPORINS",
+      "severity_if_severe": "contraindicated",
+      "severity_if_mild": "moderate",
+      "note_en": "Cross-reactivity risk between Penicillins and Cephalosporins. Avoid in severe/anaphylactic penicillin allergy.",
+      "note_ar": "احتمالية حساسية متقاطعة بين البنسلين والسيفالوسبورين. ممنوع لو حساسية البنسلين شديدة."
+    },
+    {
+      "rule_id": "ALG-CROSS-PEN-BETA",
+      "allergen_class": "CLS-PENICILLINS",
+      "target_class": "CLS-BETA-LACTAMS",
+      "severity_if_severe": "contraindicated",
+      "severity_if_mild": "major",
+      "note_en": "Drug belongs to Beta-Lactam family; high risk of reaction in Penicillin-allergic patients.",
+      "note_ar": "هذا الدواء ينتمي لعائلة بيتا لاكتام وقد يسبب رد فعل تحسسي لدى مرضى حساسية البنسلين."
+    },
+    {
+      "rule_id": "ALG-CROSS-ASP-NSAID",
+      "allergen_class": "CLS-ANTIPLATELETS",
+      "target_class": "CLS-NSAIDS",
+      "severity_if_severe": "contraindicated",
+      "severity_if_mild": "major",
+      "note_en": "Patients with Aspirin allergy often cross-react with other NSAIDs (Ibuprofen, Diclofenac).",
+      "note_ar": "مرضى حساسية الأسبرين قد يتحسسون من المسكنات الأخرى (بروفين، كتافلام، فولتارين)."
+    }
+  ]
+}

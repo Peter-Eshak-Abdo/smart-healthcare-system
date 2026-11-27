@@ -58,6 +58,8 @@ export const COLLECTIONS = {
   verifySessions: 'verify_sessions',
   dispenseLeases: 'dispense_leases',
   assistantSessions: 'assistant_sessions',
+  aiCache: 'ai_cache',
+  aiUsageMetrics: 'ai_usage_metrics',
   devices: 'devices',
   consents: 'consents',
   systemLogs: 'system_logs',

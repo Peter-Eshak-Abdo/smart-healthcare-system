@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { request as undiciRequest } from 'undici';
 import type { AppDeps } from '../../app-deps.js';
 import { COLLECTIONS } from '../../firebase/firestore-types.js';
 import { exportPublicJwk } from '../../security/crypto/keyring.js';
@@ -35,20 +34,9 @@ export function systemRoutes(deps: AppDeps): Router {
       redisOk = false;
     }
 
-    let aiOk = false;
+    let aiOk = true;
     if (deps.aiReadiness) {
       aiOk = await deps.aiReadiness.ping().catch(() => false);
-    } else if (env.AI_SERVICE_URL) {
-      try {
-        const aiRes = await undiciRequest(`${env.AI_SERVICE_URL}/internal/v1/health`, {
-          method: 'GET',
-          headersTimeout: 1500,
-          bodyTimeout: 1500,
-        });
-        aiOk = aiRes.statusCode === 200;
-      } catch {
-        aiOk = false;
-      }
     }
 
     const ready = dbOk && redisOk;

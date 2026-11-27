@@ -1,1 +1,0 @@
-# SmartHealth AI Service package

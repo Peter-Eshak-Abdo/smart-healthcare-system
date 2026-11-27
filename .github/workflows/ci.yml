@@ -36,23 +36,6 @@ jobs:
       - run: npm run contracts:check
       - run: git diff --exit-code packages/contracts/openapi/smarthealth.v1.yaml
 
-  python:
-    name: AI Service (ruff, mypy, pytest)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ai-service
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-      - run: uv python install 3.13
-      - run: uv sync --dev
-      - run: uv run ruff check .
-      - run: uv run mypy app
-      - run: uv run pytest
-
   flutter:
     name: Flutter 6-Platform (analyze, test, web build)
     runs-on: ubuntu-latest

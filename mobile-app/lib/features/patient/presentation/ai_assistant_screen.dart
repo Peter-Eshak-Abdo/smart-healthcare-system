@@ -15,12 +15,14 @@ class _ChatEntry {
     required this.text,
     this.specialty,
     this.redFlag = false,
+    this.followUps = const <String>[],
   });
 
   final bool isUser;
   final String text;
   final String? specialty;
   final bool redFlag;
+  final List<String> followUps;
 }
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
@@ -87,6 +89,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         }
       }
 
+      final List<String> followUps = res['follow_up_questions'] is List<Object?>
+          ? (res['follow_up_questions']! as List<Object?>)
+              .map((Object? e) => e?.toString() ?? '')
+              .where((String s) => s.isNotEmpty)
+              .toList()
+          : const <String>[];
+
       if (isRedFlag) {
         await HapticService.heavy();
       }
@@ -99,6 +108,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             text: replyText,
             specialty: specLabel,
             redFlag: isRedFlag,
+            followUps: followUps,
           ),
         );
       });
@@ -229,6 +239,26 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                             fontWeight: FontWeight.w700,
                             color: colors.ai,
                           ),
+                        ),
+                      ],
+                      if (m.followUps.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: m.followUps
+                              .map(
+                                (String q) => ActionChip(
+                                  label: Text(q, style: const TextStyle(fontSize: 12)),
+                                  onPressed: _sending
+                                      ? null
+                                      : () {
+                                          _inputCtrl.text = q;
+                                          _send();
+                                        },
+                                ),
+                              )
+                              .toList(),
                         ),
                       ],
                     ],

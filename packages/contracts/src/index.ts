@@ -13,3 +13,4 @@ export * from './schemas/prescriptions.js';
 export * from './schemas/pharmacy.js';
 export * from './schemas/emergency.js';
 export * from './schemas/assistant.js';
+export * from './schemas/ai.js';

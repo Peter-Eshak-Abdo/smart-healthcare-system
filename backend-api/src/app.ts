@@ -12,6 +12,7 @@ import {
 } from './middleware/security-headers.js';
 import { accessRoutes } from './modules/access/routes.js';
 import { adminRoutes } from './modules/admin/routes.js';
+import { aiRoutes } from './modules/ai/routes.js';
 import { assistantRoutes } from './modules/assistant/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { biometricRoutes, type BiometricAnalyzerPort } from './modules/biometrics/routes.js';
@@ -84,6 +85,7 @@ export function buildApp(env: AppEnv, opts: BuildAppOptions = {}): Express {
     pharmacyRoutes(deps),
     emergencyRoutes(deps),
     assistantRoutes(deps),
+    aiRoutes(deps),
     adminRoutes(deps),
   );
 

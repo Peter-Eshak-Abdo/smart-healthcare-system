@@ -118,6 +118,66 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     );
   }
 
+  Future<void> _explainRx(String rxId, String rxNumber) async {
+    await HapticService.light();
+    final String locale = ref.read(localeProvider).languageCode;
+    final Map<String, Object?> explained =
+        await _repo.explainPrescription(rxId, locale: locale);
+    if (!mounted) return;
+    final List<Object?> items =
+        (explained['items'] as List<Object?>?) ?? const <Object?>[];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext ctx) {
+        return Padding(
+          padding: const EdgeInsetsDirectional.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                ShBdi(
+                  rxNumber,
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(explained['overall_summary']?.toString() ?? ''),
+                const SizedBox(height: 12),
+                for (final Object? rawItem in items)
+                  if (rawItem is Map<Object?, Object?>)
+                    Card(
+                      margin: const EdgeInsetsDirectional.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              rawItem['drug_name']?.toString() ?? '',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(rawItem['purpose']?.toString() ?? ''),
+                            const SizedBox(height: 4),
+                            Text(rawItem['timing_and_food']?.toString() ?? ''),
+                            const SizedBox(height: 4),
+                            Text(
+                              rawItem['simple_schedule']?.toString() ?? '',
+                              style: TextStyle(color: ctx.shColors.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -204,12 +264,28 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
               child: ListTile(
                 title: ShBdi(rx['rx_number']?.toString() ?? ''),
                 subtitle: Text(rx['status']?.toString() ?? ''),
-                trailing: TextButton(
-                  onPressed: () => _showPickupQr(
-                    rx['id']?.toString() ?? '',
-                    rx['rx_number']?.toString() ?? '',
-                  ),
-                  child: Text(l10n.patientShowQr),
+                trailing: Wrap(
+                  spacing: 4,
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => _explainRx(
+                        rx['id']?.toString() ?? '',
+                        rx['rx_number']?.toString() ?? '',
+                      ),
+                      child: Text(
+                        ref.read(localeProvider).languageCode == 'en'
+                            ? 'AI Guide'
+                            : 'شرح ذكي',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _showPickupQr(
+                        rx['id']?.toString() ?? '',
+                        rx['rx_number']?.toString() ?? '',
+                      ),
+                      child: Text(l10n.patientShowQr),
+                    ),
+                  ],
                 ),
               ),
             ),

@@ -1,4 +1,4 @@
-import { createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes } from 'node:crypto';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,12 +10,6 @@ function genEd25519OneLinePem(): string {
   const { privateKey } = generateKeyPairSync('ed25519');
   const pem = privateKey.export({ format: 'pem', type: 'pkcs8' }) as string;
   return pem.trim().replace(/\r?\n/g, '\\n');
-}
-
-function genEd25519PublicOneLinePem(privatePemOneLine: string): string {
-  const pem = privatePemOneLine.replace(/\\n/g, '\n');
-  const pub = createPublicKey(createPrivateKey(pem));
-  return (pub.export({ format: 'pem', type: 'spki' }) as string).trim().replace(/\r?\n/g, '\\n');
 }
 
 function parseEnvFile(filePath: string): Map<string, string> {
@@ -68,15 +62,9 @@ function writeMergedEnv(filePath: string, additions: Record<string, string | und
 function main() {
   const backendEnvPath = path.resolve(rootDir, 'backend-api/.env');
   const webEnvPath = path.resolve(rootDir, 'web-admin/.env.local');
-  const aiEnvPath = path.resolve(rootDir, 'ai-service/.env');
   const rootEnvLocalPath = path.resolve(rootDir, '.env.local');
 
-  const existingBackend = parseEnvFile(backendEnvPath);
   const rootKv = parseEnvFile(rootEnvLocalPath);
-
-  const internalPriv =
-    existingBackend.get('INTERNAL_JWT_SIGNING_KEY') ?? genEd25519OneLinePem();
-  const internalPub = genEd25519PublicOneLinePem(internalPriv);
 
   const projectId =
     rootKv.get('FIREBASE_PROJECT_ID') ??
@@ -107,8 +95,8 @@ function main() {
       RX_SIGNING_PRIVATE_KEY: genEd25519OneLinePem(),
       EMERGENCY_CARD_SIGNING_KEY_ID: 'ec-2026-11',
       EMERGENCY_CARD_SIGNING_PRIVATE_KEY: genEd25519OneLinePem(),
-      INTERNAL_JWT_SIGNING_KEY: internalPriv,
-      AI_SERVICE_URL: 'http://127.0.0.1:8000',
+      BIOMETRIC_TRANSFORM_SECRET: randomBytes(32).toString('base64'),
+      BIOMETRIC_TRANSFORM_KEY_VERSION: '1',
     },
     false,
   );
@@ -135,22 +123,6 @@ function main() {
       FIREBASE_PROJECT_ID: projectId,
       FIREBASE_CLIENT_EMAIL: clientEmail,
       FIREBASE_PRIVATE_KEY: privateKey,
-    },
-    false,
-  );
-
-  writeMergedEnv(
-    aiEnvPath,
-    {
-      APP_ENV: 'local',
-      APP_VERSION: '1.0.0',
-      INTERNAL_JWT_PUBLIC_KEY: internalPub,
-      FACE_TRANSFORM_KEY_VERSION: '1',
-      FACE_TRANSFORM_SEED_1: randomBytes(32).toString('base64'),
-      FACE_TRANSFORM_SEED_2: randomBytes(32).toString('base64'),
-      RED_FLAGS_PATH: 'red-flags.yaml',
-      LLM_PROVIDER: 'mock',
-      LLM_MODEL: 'mock',
     },
     false,
   );

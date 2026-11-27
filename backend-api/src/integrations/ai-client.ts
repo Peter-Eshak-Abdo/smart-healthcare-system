@@ -1,11 +1,21 @@
 import { LocalizedTextSchema } from '@smarthealth/contracts';
-import CircuitBreaker from 'opossum';
-import { request as undiciRequest } from 'undici';
 import { z } from 'zod';
+import { analyzeFaceBiometric } from '../ai/biometrics/face-engine.js';
+import {
+  explainPrescription,
+  type ExplainPrescriptionInput,
+  type PrescriptionExplanationOutput,
+} from '../ai/clinical/prescription-explainer.js';
+import { runDynamicClinicalSafety } from '../ai/clinical/safety-engine.js';
+import {
+  summarizePatientHistory,
+  type PatientHistoryInput,
+  type PatientSummaryOutput,
+} from '../ai/clinical/summarizer.js';
+import { runSmartSearch, type SmartSearchOutput } from '../ai/search/smart-search.js';
+import { runAssistantTriage } from '../ai/triage/assistant-engine.js';
 import type { AppEnv } from '../config/env.js';
-import type { AiScope, InternalJwtSigner } from '../security/internal-jwt.js';
 import { AppError } from '../shared/errors.js';
-import { getRequestId } from '../shared/request-context.js';
 
 export const InternalFaceAnalyzeResponseSchema = z
   .object({
@@ -133,6 +143,9 @@ export interface FaceAnalyzeInput {
   challenge?: { challenge_id: string; sequence: string[]; issued_at?: string };
   frames: Buffer[];
   priority?: 'emergency' | 'general';
+  clientEmbedding?: number[];
+  clientLivenessScore?: number;
+  clientQualityScore?: number;
 }
 
 export interface ClinicalCheckInput {
@@ -157,6 +170,10 @@ export interface AssistantTriageInput {
     age_band: string;
     sex: 'male' | 'female';
     pregnant?: boolean | null;
+    allergies?: string[];
+    conditions?: string[];
+    activeMedications?: string[];
+    knownNames?: string[];
   };
 }
 
@@ -164,130 +181,44 @@ export interface AiClientPort {
   analyzeFace(input: FaceAnalyzeInput): Promise<InternalFaceAnalyzeResponse>;
   checkClinicalInteractions(input: ClinicalCheckInput): Promise<InternalClinicalCheckResponse>;
   triageAssistant(input: AssistantTriageInput): Promise<InternalAssistantTriageResponse>;
+  summarizeHistory?(input: PatientHistoryInput): Promise<PatientSummaryOutput>;
+  explainPrescription?(input: ExplainPrescriptionInput): Promise<PrescriptionExplanationOutput>;
+  smartSearch?(input: { query: string; locale: 'ar' | 'en' }): Promise<SmartSearchOutput>;
 }
 
-const BASE_BREAKER_OPTS = {
-  errorThresholdPercentage: 50,
-  resetTimeout: 30_000,
-  volumeThreshold: 3,
-};
-
+/**
+ * Integrated in-process AI + RAG client (zero external Python microservice).
+ */
 export class AiClient implements AiClientPort {
-  private readonly faceBreaker: CircuitBreaker<[FaceAnalyzeInput], InternalFaceAnalyzeResponse>;
-  private readonly clinicalBreaker: CircuitBreaker<[ClinicalCheckInput], InternalClinicalCheckResponse>;
-  private readonly assistantBreaker: CircuitBreaker<[AssistantTriageInput], InternalAssistantTriageResponse>;
-
-  constructor(
-    private readonly env: AppEnv,
-    private readonly internalJwt: InternalJwtSigner,
-  ) {
-    this.faceBreaker = new CircuitBreaker((input: FaceAnalyzeInput) => this.callFace(input), {
-      ...BASE_BREAKER_OPTS,
-      timeout: 15_000,
-    });
-    this.clinicalBreaker = new CircuitBreaker(
-      (input: ClinicalCheckInput) => this.postJson('/clinical/check-interactions', 'clinical', input, InternalClinicalCheckResponseSchema, 3_000),
-      { ...BASE_BREAKER_OPTS, timeout: 3_000 },
-    );
-    this.assistantBreaker = new CircuitBreaker(
-      (input: AssistantTriageInput) => this.postJson('/assistant/triage', 'assistant', input, InternalAssistantTriageResponseSchema, 9_000),
-      { ...BASE_BREAKER_OPTS, timeout: 9_000 },
-    );
-  }
+  constructor(private readonly env: AppEnv) {}
 
   async analyzeFace(input: FaceAnalyzeInput): Promise<InternalFaceAnalyzeResponse> {
-    return this.mapBreakerCall(() => this.faceBreaker.fire(input));
+    return analyzeFaceBiometric(this.env, input);
   }
 
   async checkClinicalInteractions(input: ClinicalCheckInput): Promise<InternalClinicalCheckResponse> {
-    return this.mapBreakerCall(() => this.clinicalBreaker.fire(input));
+    return runDynamicClinicalSafety(this.env, input);
   }
 
   async triageAssistant(input: AssistantTriageInput): Promise<InternalAssistantTriageResponse> {
-    return this.mapBreakerCall(() => this.assistantBreaker.fire(input));
-  }
-
-  private async mapBreakerCall<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (err) {
-      if (err instanceof AppError) throw err;
-      if (err instanceof Error && err.message.toLowerCase().includes('timed out')) {
-        throw new AppError('AI_TIMEOUT', { cause: err });
-      }
-      throw new AppError('AI_SERVICE_UNAVAILABLE', { cause: err });
-    }
-  }
-
-  private async callFace(input: FaceAnalyzeInput): Promise<InternalFaceAnalyzeResponse> {
-    const rid = getRequestId();
-    const token = await this.internalJwt.sign({ scope: 'face', ...(rid ? { rid } : {}) });
-
-    const form = new FormData();
-    form.set('mode', input.mode);
-    form.set('liveness_mode', input.livenessMode);
-    if (input.challenge) {
-      form.set('challenge', JSON.stringify(input.challenge));
-    }
-    input.frames.forEach((buf, idx) => {
-      form.append('frames', new Blob([Uint8Array.from(buf)], { type: 'image/jpeg' }), `frame-${idx}.jpg`);
+    return runAssistantTriage(this.env, {
+      locale: input.locale,
+      message: input.message,
+      history: input.history,
+      patientContext: input.patient_context,
     });
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 14_500);
-    try {
-      const response = await fetch(`${this.env.AI_SERVICE_URL}/internal/v1/face/analyze`, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${token}`,
-          ...(rid ? { 'x-request-id': rid } : {}),
-          ...(input.priority === 'emergency' ? { 'x-priority': 'emergency' } : {}),
-        },
-        body: form,
-        signal: controller.signal,
-      });
-
-      if (response.status >= 500) {
-        throw new AppError('AI_SERVICE_UNAVAILABLE');
-      }
-      if (!response.ok) {
-        throw new AppError('VALIDATION_FAILED', { detail: `ai_face_rejected_${response.status}` });
-      }
-      return InternalFaceAnalyzeResponseSchema.parse(await response.json());
-    } finally {
-      clearTimeout(timer);
-    }
   }
 
-  private async postJson<T extends z.ZodTypeAny>(
-    path: string,
-    scope: AiScope,
-    body: unknown,
-    schema: T,
-    timeoutMs: number,
-  ): Promise<z.infer<T>> {
-    const rid = getRequestId();
-    const token = await this.internalJwt.sign({ scope, ...(rid ? { rid } : {}) });
-    const res = await undiciRequest(`${this.env.AI_SERVICE_URL}/internal/v1${path}`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${token}`,
-        'content-type': 'application/json',
-        ...(rid ? { 'x-request-id': rid } : {}),
-      },
-      body: JSON.stringify(body),
-      headersTimeout: timeoutMs,
-      bodyTimeout: timeoutMs,
-    });
+  async summarizeHistory(input: PatientHistoryInput): Promise<PatientSummaryOutput> {
+    return summarizePatientHistory(this.env, input);
+  }
 
-    if (res.statusCode >= 500) {
-      throw new AppError('AI_SERVICE_UNAVAILABLE');
-    }
-    if (res.statusCode >= 400) {
-      throw new AppError('VALIDATION_FAILED', { detail: `ai_rejected_${res.statusCode}` });
-    }
-    const raw = await res.body.json();
-    return schema.parse(raw);
+  async explainPrescription(input: ExplainPrescriptionInput): Promise<PrescriptionExplanationOutput> {
+    return explainPrescription(this.env, input);
+  }
+
+  async smartSearch(input: { query: string; locale: 'ar' | 'en' }): Promise<SmartSearchOutput> {
+    return runSmartSearch(this.env, input);
   }
 }
 

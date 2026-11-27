@@ -15,7 +15,6 @@ export interface Keyring {
   rxPublicKeys: Ed25519KeyPair[];
   emergencyCardKey: Ed25519KeyPair;
   emergencyCardPublicKeys: Ed25519KeyPair[];
-  internalJwtKey: Ed25519KeyPair;
 }
 
 function decodeKey32(b64: string, name: string): Buffer {
@@ -47,7 +46,6 @@ export function createKeyring(env: AppEnv): Keyring {
 
   let rxKeyPair: Ed25519KeyPair | null = null;
   let ecKeyPair: Ed25519KeyPair | null = null;
-  let internalKeyPair: Ed25519KeyPair | null = null;
   let bidxKey: Buffer | null = env.BLIND_INDEX_KEY
     ? decodeKey32(env.BLIND_INDEX_KEY, 'BLIND_INDEX_KEY')
     : null;
@@ -68,17 +66,6 @@ export function createKeyring(env: AppEnv): Keyring {
       );
     }
     return ecKeyPair;
-  };
-
-  const ensureInternal = (): Ed25519KeyPair => {
-    if (!internalKeyPair) {
-      internalKeyPair = loadEd25519Pair(
-        'internal-1',
-        env.INTERNAL_JWT_SIGNING_KEY,
-        'INTERNAL_JWT_SIGNING_KEY',
-      );
-    }
-    return internalKeyPair;
   };
 
   return {
@@ -107,9 +94,6 @@ export function createKeyring(env: AppEnv): Keyring {
     },
     get emergencyCardPublicKeys(): Ed25519KeyPair[] {
       return env.EMERGENCY_CARD_SIGNING_PRIVATE_KEY ? [ensureEc()] : [];
-    },
-    get internalJwtKey(): Ed25519KeyPair {
-      return ensureInternal();
     },
   };
 }

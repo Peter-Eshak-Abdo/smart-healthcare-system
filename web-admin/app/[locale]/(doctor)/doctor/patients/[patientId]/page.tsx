@@ -4,9 +4,10 @@ import type {
   CreateEncounterResponseSchema,
   DoctorPatientSummaryResponseSchema,
   MeResponse,
+  PatientAiSummaryResponseSchema,
 } from '@smarthealth/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Droplets, FilePlus2, Pill, ShieldAlert, XCircle } from 'lucide-react';
+import { CheckCircle2, Droplets, FilePlus2, Pill, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -18,6 +19,7 @@ import { formatCairoDateTime } from '@/lib/format/date';
 
 type PatientSummary = z.infer<typeof DoctorPatientSummaryResponseSchema>;
 type CreatedEncounter = z.infer<typeof CreateEncounterResponseSchema>;
+type PatientAiSummary = z.infer<typeof PatientAiSummaryResponseSchema>;
 
 export default function DoctorPatientSummaryPage() {
   const params = useParams<{ patientId: string }>();
@@ -33,6 +35,16 @@ export default function DoctorPatientSummaryPage() {
   const [bloodType, setBloodType] = useState<'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | 'unknown'>('O+');
   const [verifiedLab, setVerifiedLab] = useState(true);
   const [actionError, setActionError] = useState<unknown>(null);
+  const [aiSummaryRequested, setAiSummaryRequested] = useState(false);
+
+  const aiSummaryQuery = useQuery({
+    queryKey: ['doctor-patient-ai-summary', params.patientId, locale],
+    queryFn: () =>
+      apiFetch<PatientAiSummary>(`/v1/patients/${params.patientId}/ai-summary?locale=${locale}`, {
+        locale,
+      }),
+    enabled: aiSummaryRequested,
+  });
 
   const meQuery = useQuery({
     queryKey: ['me'],
@@ -103,6 +115,44 @@ export default function DoctorPatientSummaryPage() {
     <div className="grid gap-6 lg:grid-cols-12">
       <div className="space-y-5 lg:col-span-7">
         {actionError !== null && <ProblemAlert error={actionError} />}
+
+        <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h2>{isEn ? 'AI 5-Second Clinical Summary' : 'ملخص الحالة الذكي في 5 ثواني'}</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAiSummaryRequested(true)}
+              disabled={aiSummaryQuery.isFetching}
+              className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+            >
+              {aiSummaryQuery.isFetching
+                ? isEn
+                  ? 'Summarizing...'
+                  : 'جاري التلخيص...'
+                : aiSummaryQuery.data
+                  ? isEn
+                    ? 'Refresh Summary'
+                    : 'تحديث الملخص'
+                  : isEn
+                    ? 'Generate AI Summary'
+                    : 'تلخيص التاريخ المرضي'}
+            </button>
+          </div>
+          {aiSummaryQuery.data && (
+            <div className="mt-3 space-y-2 text-sm text-foreground">
+              <p className="font-semibold">{aiSummaryQuery.data.headline}</p>
+              {aiSummaryQuery.data.critical_alerts.length > 0 && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs font-medium text-destructive">
+                  {aiSummaryQuery.data.critical_alerts.join(' · ')}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">{aiSummaryQuery.data.clinical_takeaway}</p>
+            </div>
+          )}
+        </section>
 
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 text-sm font-bold text-foreground">

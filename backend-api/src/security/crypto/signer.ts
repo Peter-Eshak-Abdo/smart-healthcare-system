@@ -55,7 +55,7 @@ export function createSigner(keyring: Keyring): Signer {
     },
 
     async signStepUpJwt(claims: { sub: string; did: string; pur: string; jti: string }): Promise<string> {
-      const pair = keyring.internalJwtKey;
+      const pair = keyring.rxKey;
       return new SignJWT({
         sub: claims.sub,
         did: claims.did,

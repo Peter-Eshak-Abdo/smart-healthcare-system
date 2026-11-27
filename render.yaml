@@ -45,7 +45,9 @@ services:
         value: "ec-2026-11"
       - key: EMERGENCY_CARD_SIGNING_PRIVATE_KEY
         sync: false
-      - key: INTERNAL_JWT_SIGNING_KEY
+      - key: GEMINI_API_KEY
         sync: false
-      - key: AI_SERVICE_URL
+      - key: GROQ_API_KEY
+        sync: false
+      - key: BIOMETRIC_TRANSFORM_SECRET
         sync: false

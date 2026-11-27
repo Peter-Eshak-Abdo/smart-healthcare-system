@@ -138,7 +138,7 @@ export function createStepUpService(
 
     async verifyToken(token, expectedUserId, expectedPurpose) {
       try {
-        const { payload } = await jwtVerify(token, keyring.internalJwtKey.publicKey, {
+        const { payload } = await jwtVerify(token, keyring.rxKey.publicKey, {
           issuer: 'backend-api',
           audience: 'backend-api-stepup',
           algorithms: ['EdDSA'],

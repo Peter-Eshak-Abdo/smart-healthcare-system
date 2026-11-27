@@ -1,5 +1,7 @@
 /* eslint-disable no-console */
 import { randomUUID } from 'node:crypto';
+import { summarizePatientHistory } from '../src/ai/clinical/summarizer.js';
+import { explainPrescription } from '../src/ai/clinical/prescription-explainer.js';
 import { loadEnv } from '../src/config/env.js';
 import { createFirebaseBundle } from '../src/firebase/firebase-admin.js';
 import {
@@ -307,6 +309,36 @@ async function seed() {
       resourceId: patientUid,
       patientId: patientUid,
       patientMrnLast4: '0102',
+    });
+
+    // Pre-warm AI cache for demo patient (0-token <50ms response during graduation defense)
+    await summarizePatientHistory(env, {
+      patientId: patientUid,
+      locale: 'ar',
+      ageBand: '18-34',
+      sex: 'female',
+      bloodType: 'O+',
+      allergies: [{ name: 'PENICILLIN', severity: 'severe' }],
+      conditions: [],
+      medications: [],
+      recentEncounters: [],
+      db,
+      role: 'system_seed',
+    });
+    await explainPrescription(env, {
+      prescriptionId: 'demo-rx-001',
+      locale: 'ar',
+      items: [
+        {
+          drug_id: 'drug-paracetamol-500',
+          drug_name: 'Panadol 500mg',
+          dose: '1 قرص',
+          frequency: 'كل 8 ساعات عند اللزوم',
+          duration_days: 5,
+        },
+      ],
+      db,
+      role: 'system_seed',
     });
   }
 

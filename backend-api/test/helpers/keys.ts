@@ -12,7 +12,6 @@ function pemPair(): { privatePem: string } {
 export function createTestEnv(overrides: Partial<AppEnv> = {}): AppEnv {
   const rx = pemPair();
   const ec = pemPair();
-  const internal = pemPair();
 
   const base = loadEnv({
     APP_ENV: 'test',
@@ -26,7 +25,7 @@ export function createTestEnv(overrides: Partial<AppEnv> = {}): AppEnv {
     RX_SIGNING_PRIVATE_KEY: rx.privatePem,
     EMERGENCY_CARD_SIGNING_KEY_ID: 'ec-2026-11',
     EMERGENCY_CARD_SIGNING_PRIVATE_KEY: ec.privatePem,
-    INTERNAL_JWT_SIGNING_KEY: internal.privatePem,
+    BIOMETRIC_TRANSFORM_SECRET: 'test-biometric-transform-secret-32b',
   });
 
   return { ...base, ...overrides };

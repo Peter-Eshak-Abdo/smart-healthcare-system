@@ -11,9 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "keys:dev": "tsx scripts/keys-dev.ts",
-    "seed:firebase": "tsx scripts/seed-firebase.ts"
+    "seed:firebase": "tsx scripts/seed-firebase.ts",
+    "ai:index": "tsx src/ai/rag/build-index.ts"
   },
   "dependencies": {
+    "@google/genai": "^3.6.1",
     "@smarthealth/contracts": "1.0.0",
     "argon2": "^0.44.0",
     "canonicalize": "^2.0.0",
@@ -34,13 +36,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.10.0",
     "@types/opossum": "^8.1.9",
     "@types/supertest": "^6.0.3",
     "cors": "^2.8.5",
-    "@types/cors": "^2.8.19",
     "eslint": "^9.39.2",
     "supertest": "^7.1.4",
     "tsx": "^4.21.0",

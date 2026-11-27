@@ -142,6 +142,73 @@ class PatientRepository {
     );
   }
 
+  Future<Map<String, Object?>> explainPrescription(
+    String prescriptionId, {
+    String locale = 'ar',
+  }) {
+    return _api.getJson(
+      '/v1/patients/me/prescriptions/$prescriptionId/explain',
+      query: <String, Object?>{'locale': locale},
+    );
+  }
+
+  Future<Map<String, Object?>> smartSearch(
+    String query, {
+    String locale = 'ar',
+  }) {
+    return _api.getJson(
+      '/v1/ai/smart-search',
+      query: <String, Object?>{'q': query, 'locale': locale},
+    );
+  }
+
+  Future<Map<String, Object?>> analyzeLabReport({
+    required List<int> imageBytes,
+    String locale = 'ar',
+  }) async {
+    final FormData formData = FormData();
+    formData.fields.add(MapEntry<String, String>('locale', locale));
+    formData.files.add(
+      MapEntry<String, MultipartFile>(
+        'image',
+        MultipartFile.fromBytes(imageBytes, filename: 'lab_report.jpg'),
+      ),
+    );
+    return _api.postMultipart(
+      '/v1/ai/vision/lab-report',
+      formData: formData,
+      idempotencyKey: 'vision-${DateTime.now().microsecondsSinceEpoch}',
+    );
+  }
+
+  Future<Map<String, Object?>> scanMedicineBox({
+    required List<int> imageBytes,
+    String locale = 'ar',
+  }) async {
+    final FormData formData = FormData();
+    formData.fields.add(MapEntry<String, String>('locale', locale));
+    formData.files.add(
+      MapEntry<String, MultipartFile>(
+        'image',
+        MultipartFile.fromBytes(imageBytes, filename: 'med_box.jpg'),
+      ),
+    );
+    return _api.postMultipart(
+      '/v1/ai/vision/medicine-box',
+      formData: formData,
+      idempotencyKey: 'medbox-${DateTime.now().microsecondsSinceEpoch}',
+    );
+  }
+
+  Future<Map<String, Object?>> checkChronicAnomalies({
+    required List<Map<String, Object?>> readings,
+  }) {
+    return _api.postJson(
+      '/v1/patients/me/chronic-anomalies',
+      body: <String, Object?>{'readings': readings},
+    );
+  }
+
   Future<Map<String, Object?>> enrollFaceFrames({
     required List<List<int>> jpegFrames,
     required String idempotencyKey,

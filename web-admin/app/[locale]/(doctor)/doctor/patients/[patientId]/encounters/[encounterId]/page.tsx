@@ -6,7 +6,7 @@ import type {
   PatchEncounterResponseSchema,
 } from '@smarthealth/contracts';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { CheckCircle2, FileText, Plus, Stethoscope } from 'lucide-react';
+import { CheckCircle2, FileText, Mic, Plus, Sparkles, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
@@ -37,6 +37,73 @@ export default function DoctorEncounterWorkspacePage() {
   const [addendumText, setAddendumText] = useState('');
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [scribeTranscript, setScribeTranscript] = useState('');
+  const [listening, setListening] = useState(false);
+
+  const soapMutation = useMutation({
+    mutationFn: (transcript: string) =>
+      apiFetch<{
+        subjective: string;
+        objective: string;
+        assessment: string;
+        plan: string;
+      }>('/v1/ai/scribe/soap', {
+        method: 'POST',
+        locale,
+        body: { transcript, locale },
+      }),
+    onSuccess: (soap) => {
+      setError(null);
+      setNotesInternal(
+        `S: ${soap.subjective}\nO: ${soap.objective}\nA: ${soap.assessment}\nP: ${soap.plan}`,
+      );
+      setPatientSummary(soap.plan);
+      setSavedNotice(
+        isEn ? 'SOAP notes generated from voice transcript.' : 'تم تنظيم ملاحظات الكشف (SOAP) بنجاح.',
+      );
+    },
+    onError: (err) => setError(err),
+  });
+
+  function startBrowserVoiceScribe() {
+    const w = window as unknown as {
+      SpeechRecognition?: new () => {
+        lang: string;
+        interimResults: boolean;
+        onresult: (ev: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+        onend: () => void;
+        start: () => void;
+      };
+      webkitSpeechRecognition?: new () => {
+        lang: string;
+        interimResults: boolean;
+        onresult: (ev: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+        onend: () => void;
+        start: () => void;
+      };
+    };
+    const Rec = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!Rec) {
+      setSavedNotice(
+        isEn
+          ? 'Browser speech API unavailable; type dictation below and click Format SOAP.'
+          : 'المتصفح لا يدعم التسجيل الصوتي؛ يمكنك كتابة الملاحظة والضغط على تنظيم SOAP.',
+      );
+      return;
+    }
+    const rec = new Rec();
+    rec.lang = isEn ? 'en-US' : 'ar-EG';
+    rec.interimResults = false;
+    setListening(true);
+    rec.onresult = (ev) => {
+      const text = ev.results[0]?.[0]?.transcript ?? '';
+      if (text) {
+        setScribeTranscript((prev) => `${prev} ${text}`.trim());
+      }
+    };
+    rec.onend = () => setListening(false);
+    rec.start();
+  }
 
   const icdSearch = useQuery({
     queryKey: ['icd10-search', icdQuery],
@@ -136,9 +203,50 @@ export default function DoctorEncounterWorkspacePage() {
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-4 rounded-2xl border border-border bg-card p-5 lg:col-span-7">
-          <div className="flex items-center gap-2 text-sm font-bold">
-            <Stethoscope className="h-4 w-4 text-primary" />
-            <h3>{isEn ? 'Clinical Notes & Summary' : 'ملاحظات الكشف وملخص المريض'}</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="h-4 w-4 text-primary" />
+              <h3>{isEn ? 'Clinical Notes & Summary' : 'ملاحظات الكشف وملخص المريض'}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={startBrowserVoiceScribe}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary"
+            >
+              <Mic className="h-3.5 w-3.5" />
+              <span>
+                {listening
+                  ? isEn
+                    ? 'Listening...'
+                    : 'جاري الاستماع...'
+                  : isEn
+                    ? 'Voice Scribe (0 Audio Tokens)'
+                    : 'إملاء صوتي ذكي'}
+              </span>
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background p-2.5">
+            <input
+              type="text"
+              value={scribeTranscript}
+              onChange={(e) => setScribeTranscript(e.target.value)}
+              placeholder={
+                isEn
+                  ? 'Dictated or quick clinical text for SOAP formatting...'
+                  : 'اكتب أو أملِ ملخص الكشف لتحويله لملاحظات SOAP...'
+              }
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+            />
+            <button
+              type="button"
+              disabled={soapMutation.isPending || scribeTranscript.trim().length < 5}
+              onClick={() => soapMutation.mutate(scribeTranscript.trim())}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>{isEn ? 'Format SOAP' : 'تنظيم SOAP'}</span>
+            </button>
           </div>
 
           <textarea

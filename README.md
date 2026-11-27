@@ -16,8 +16,7 @@ smart-healthcare-system/
 ├── render.yaml                # Render Free Tier blueprint for backend-api
 ├── packages/contracts/        # Single source of truth: Zod schemas, OpenAPI v1, error codes, red-flags.yaml
 ├── design/                    # Design tokens (DTCG JSON) & Egyptian Arabic UX copy source
-├── backend-api/               # Express 5 + TypeScript + Firebase Admin + AES-256-GCM + Ed25519
-├── ai-service/                # Python 3.12+ FastAPI + ONNX face/PAD + deterministic DDI + triage assistant (HF Spaces ready)
+├── backend-api/               # Express 5 + TypeScript + Integrated AI/RAG Engine (Gemini + Groq + BM25) + Firebase Admin
 ├── web-admin/                 # Next.js 16 + Tailwind v4 + Firebase Auth + Vercel config (Doctor, Pharmacist, ER, Admin)
 ├── mobile-app/                # Flutter (Android, iOS, Web, Windows, macOS, Linux) + Firebase Auth + Encrypted Hive
 ├── env.example                # Documented environment variable template (English + Arabic)
@@ -28,22 +27,21 @@ smart-healthcare-system/
 
 ### Prerequisites
 - Node.js 24 LTS & npm 10+
-- Python 3.12+ & `uv` (`pip install uv` or `python -m uv`)
 - Flutter 3.x stable & Dart 3.x
 - Firebase project (Spark Free Tier) & optional Upstash Redis Free Tier
 
 ### 1. Install Dependencies
 ```powershell
 npm install
-cd ai-service; python -m uv sync --dev; cd ..
 cd mobile-app; flutter pub get; flutter gen-l10n; cd ..
 ```
 
 ### 2. Configure Environment & Generate Crypto Keys
-Copy sections from `env.example` into `backend-api/.env`, `web-admin/.env.local`, and `ai-service/.env`, then generate local Ed25519 + AES-256 keys:
+Copy sections from `env.example` into `backend-api/.env` and `web-admin/.env.local`, then generate local Ed25519 + AES-256 keys:
 ```powershell
 npm run keys:dev
 npm run contracts:openapi
+npm run ai:index -w backend-api
 ```
 
 ### 3. Deploy Firebase Rules & Seed Reference/Demo Data
@@ -52,18 +50,15 @@ npx firebase-tools deploy --only firestore:rules,firestore:indexes,storage
 npm run seed:firebase
 ```
 
-### 4. Run Services Locally (3 Terminals + App)
+### 4. Run Services Locally (2 Terminals + App)
 ```powershell
-# Terminal 1 — Backend API (http://localhost:4000)
+# Terminal 1 — Backend API + Integrated AI/RAG Engine (http://localhost:4000)
 npm run dev:backend
 
-# Terminal 2 — AI Microservice (http://localhost:8000)
-cd ai-service; python -m uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# Terminal 3 — Next.js Web Portal (http://localhost:3000)
+# Terminal 2 — Next.js Web Portal (http://localhost:3000)
 npm run dev:web
 
-# Terminal 4 — Flutter Multi-Platform App
+# Terminal 3 — Flutter Multi-Platform App
 cd mobile-app; flutter run -d chrome   # or -d windows / android emulator
 ```
 
@@ -74,8 +69,7 @@ npm run typecheck --workspaces
 npm run test --workspaces
 npm run build
 npm run contracts:check
-cd ai-service; python -m uv run ruff check .; python -m uv run mypy app; python -m uv run pytest -v; cd ..
 cd mobile-app; flutter analyze --fatal-warnings; flutter test; flutter build web --release; cd ..
 ```
 
-See [req.md](./req.md) for complete setup, Firebase configuration, Android APK builds, and 100% Free Cloud Deployment (Render, Hugging Face Spaces, Vercel, Firebase Hosting).
+See [req.md](./req.md) for complete setup, Firebase configuration, Android APK builds, and 100% Free Cloud Deployment (Render, Vercel, Firebase Hosting).
