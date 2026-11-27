@@ -1,8 +1,8 @@
 ---
 title: SmartHealth AI Service
 emoji: 🏥
-colorFrom: teal
-colorTo: cyan
+colorFrom: indigo
+colorTo: purple
 sdk: docker
 app_port: 7860
 pinned: false
@@ -15,6 +15,7 @@ FastAPI microservice for SmartHealth (Face Recognition + PAD Liveness, Determini
 ## Hugging Face Space Secrets
 
 Add these variables in **Space Settings → Variables and secrets**:
+
 - `APP_ENV=production`
 - `INTERNAL_JWT_PUBLIC_KEY` (Ed25519 public key matching `backend-api` `INTERNAL_JWT_SIGNING_KEY`)
 - `FACE_TRANSFORM_KEY_VERSION=1`
