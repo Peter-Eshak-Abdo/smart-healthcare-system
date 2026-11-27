@@ -11,7 +11,7 @@ jobs:
     name: Node (lint, typecheck, test, build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
@@ -26,7 +26,7 @@ jobs:
     name: OpenAPI & Security Rules Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
@@ -43,7 +43,7 @@ jobs:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
