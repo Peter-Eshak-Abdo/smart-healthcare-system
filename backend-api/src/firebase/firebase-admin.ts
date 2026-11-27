@@ -47,6 +47,17 @@ export interface FirebaseBundle {
   adminPort: FirebaseAdminPort;
 }
 
+function normalizePemKey(raw: string): string {
+  let cleaned = raw.trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n').replace(/\r/g, '');
+}
+
 function parseServiceAccount(env: AppEnv): ServiceAccount | null {
   if (env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     const parsed = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON) as {
@@ -58,7 +69,7 @@ function parseServiceAccount(env: AppEnv): ServiceAccount | null {
       return {
         projectId: parsed.project_id,
         clientEmail: parsed.client_email,
-        privateKey: parsed.private_key.replace(/\\n/g, '\n'),
+        privateKey: normalizePemKey(parsed.private_key),
       };
     }
   }
@@ -66,7 +77,7 @@ function parseServiceAccount(env: AppEnv): ServiceAccount | null {
     return {
       projectId: env.FIREBASE_PROJECT_ID,
       clientEmail: env.FIREBASE_CLIENT_EMAIL,
-      privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey: normalizePemKey(env.FIREBASE_PRIVATE_KEY),
     };
   }
   return null;
