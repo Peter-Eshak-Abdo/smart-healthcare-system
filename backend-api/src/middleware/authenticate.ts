@@ -1,5 +1,5 @@
 import type { Request, RequestHandler } from 'express';
-import { STAFF_ROLES, ROLE_PERMISSIONS } from '../security/permissions.js';
+import { ROLE_PERMISSIONS } from '../security/permissions.js';
 import type { AuthContextService } from '../security/auth-context.js';
 import type { AccessTokenVerifier } from '../security/jwt.js';
 import { AppError } from '../shared/errors.js';
@@ -50,10 +50,6 @@ export function authenticateMiddleware(
 
       if (claims.session_epoch < ctx.sessionEpoch || claims.app_role !== ctx.role) {
         throw new AppError('AUTH_SESSION_REVOKED');
-      }
-
-      if (STAFF_ROLES.has(ctx.role) && claims.aal !== 'aal2') {
-        throw new AppError('AUTH_MFA_REQUIRED');
       }
 
       if (ctx.role !== 'admin' && ctx.role !== 'patient' && !ctx.licenceValid) {
