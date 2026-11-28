@@ -13,6 +13,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ProblemAlert } from '@/components/common/ProblemAlert';
+import { PendingStaffRequests } from '@/components/admin/PendingStaffRequests';
 import { apiFetch } from '@/lib/api/client';
 
 type UsersPage = z.infer<typeof AdminUsersResponseSchema>;
@@ -160,6 +161,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
+      <PendingStaffRequests />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <select
           value={roleFilter}

@@ -45,6 +45,21 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
+  const completeStaffLogin = async (token: string) => {
+    await syncFirebaseSessionCookie(token);
+    try {
+      const me = await apiFetch<MeResponse>('/v1/me', { locale });
+      if (['doctor', 'pharmacist', 'paramedic', 'admin'].includes(me.role)) {
+        router.push(resolvePortalHome(me.role, prefix) as never);
+        return;
+      }
+    } catch {
+      // User does not have an active staff profile yet; request admin approval.
+    }
+    await fetch('/api/staff-requests', { method: 'POST' });
+    router.push(`${prefix}/pending-approval` as never);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -58,9 +73,7 @@ export default function LoginPage() {
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       const token = await cred.user.getIdToken();
-      await syncFirebaseSessionCookie(token);
-      const me = await apiFetch<MeResponse>('/v1/me', { locale });
-      router.push(resolvePortalHome(me.role, prefix) as never);
+      await completeStaffLogin(token);
     } catch (err) {
       setError(err);
     } finally {
@@ -81,9 +94,7 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       const token = await cred.user.getIdToken();
-      await syncFirebaseSessionCookie(token);
-      const me = await apiFetch<MeResponse>('/v1/me', { locale });
-      router.push(resolvePortalHome(me.role, prefix) as never);
+      await completeStaffLogin(token);
     } catch (err) {
       setError(err);
     } finally {
