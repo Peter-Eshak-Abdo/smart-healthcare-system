@@ -10,11 +10,22 @@ const PENDING_PATIENT_ROUTES: Array<{ method: string; pathPrefix: string }> = [
   { method: 'POST', pathPrefix: '/patients/me/consents' },
 ];
 
-function isPendingAllowedRoute(req: Request): boolean {
+/** Routes a clinician whose licence is not (yet) verified may still call, so clients can show status. */
+const UNLICENSED_STAFF_ROUTES: Array<{ method: string; pathPrefix: string }> = [
+  { method: 'GET', pathPrefix: '/me' },
+  { method: 'POST', pathPrefix: '/auth/logout' },
+];
+
+function matchesRoute(req: Request, rules: Array<{ method: string; pathPrefix: string }>): boolean {
   const path = req.path;
-  return PENDING_PATIENT_ROUTES.some(
-    (rule) => req.method === rule.method && (path === rule.pathPrefix || path === `/v1${rule.pathPrefix}`),
+  return rules.some(
+    (rule) =>
+      req.method === rule.method && (path === rule.pathPrefix || path === `/v1${rule.pathPrefix}`),
   );
+}
+
+function isPendingAllowedRoute(req: Request): boolean {
+  return matchesRoute(req, PENDING_PATIENT_ROUTES);
 }
 
 export function authenticateMiddleware(
@@ -52,7 +63,12 @@ export function authenticateMiddleware(
         throw new AppError('AUTH_SESSION_REVOKED');
       }
 
-      if (ctx.role !== 'admin' && ctx.role !== 'patient' && !ctx.licenceValid) {
+      if (
+        ctx.role !== 'admin' &&
+        ctx.role !== 'patient' &&
+        !ctx.licenceValid &&
+        !matchesRoute(req, UNLICENSED_STAFF_ROUTES)
+      ) {
         throw new AppError('LICENSE_NOT_VALID');
       }
 

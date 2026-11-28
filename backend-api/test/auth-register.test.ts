@@ -14,6 +14,7 @@ describe('RegisterAccountRequestSchema', () => {
     sex: 'male' as const,
     preferred_locale: 'ar' as const,
     blood_type: 'O+' as const,
+    accept_terms: true as const,
   };
 
   it('accepts a valid patient registration payload', () => {

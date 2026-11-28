@@ -43,7 +43,16 @@ export const EnvSchema = z
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     APP_VERSION: z.string().default('1.0.0'),
     GIT_COMMIT: z.string().default('dev'),
-    WEB_ORIGIN: z.string().url().optional(),
+    /** Comma-separated CORS allowlist, e.g. `http://localhost:3000,https://app.example.com`. */
+    WEB_ORIGIN: z
+      .string()
+      .optional()
+      .refine(
+        (v) => !v || v.split(',').every((o) => /^https?:\/\/[^\s,]+$/.test(o.trim())),
+        'WEB_ORIGIN must be a comma-separated list of http(s) origins',
+      ),
+    /** Local/test only: auto-verify clinician licences at self-registration (ignored in staging/production). */
+    DEV_AUTO_VERIFY_STAFF: z.enum(['true', 'false']).optional(),
     FIREBASE_PROJECT_ID: z.string().min(2).optional(),
     FIREBASE_CLIENT_EMAIL: z.string().email().optional(),
     FIREBASE_PRIVATE_KEY: z.string().min(20).optional(),

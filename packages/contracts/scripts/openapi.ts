@@ -45,6 +45,8 @@ import {
 } from '../src/schemas/admin.js';
 import {
   DeviceIdParamSchema,
+  RegisterAccountRequestSchema,
+  RegisterAccountResponseSchema,
   RegisterDeviceRequestSchema,
   RegisterDeviceResponseSchema,
   StepUpChallengeRequestSchema,
@@ -253,6 +255,19 @@ export function buildOpenApiDocument(): Record<string, unknown> {
   });
 
   // Auth & Step-up
+  registry.registerPath({
+    method: 'post',
+    path: '/v1/auth/register',
+    summary: 'Self-service account registration (patient active immediately; clinical staff pending licence review)',
+    tags: ['Auth'],
+    request: { body: jsonBody(RegisterAccountRequestSchema) },
+    responses: {
+      201: { description: 'Account created', ...jsonBody(RegisterAccountResponseSchema) },
+      409: PROBLEM_RESPONSE,
+      422: PROBLEM_RESPONSE,
+      429: PROBLEM_RESPONSE,
+    },
+  });
   registry.registerPath({
     method: 'post',
     path: '/v1/auth/devices',

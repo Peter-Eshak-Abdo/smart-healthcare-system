@@ -30,9 +30,24 @@ export function securityHeadersMiddleware(): RequestHandler[] {
 }
 
 export function corsMiddleware(env: AppEnv): RequestHandler {
-  const allowedOrigin = env.WEB_ORIGIN ?? false;
+  // WEB_ORIGIN may hold a comma-separated allowlist (web-admin + Flutter Web + previews).
+  const configured = (env.WEB_ORIGIN ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+  const isLocal = env.APP_ENV === 'local' || env.APP_ENV === 'test';
+  const allowedOrigins = new Set(configured);
   return cors({
-    origin: allowedOrigin,
+    origin(origin, cb) {
+      // Non-browser clients (mobile, curl, server components) send no Origin header.
+      if (!origin) return cb(null, true);
+      const normalized = origin.replace(/\/$/, '');
+      if (allowedOrigins.has(normalized)) return cb(null, true);
+      if (isLocal && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) {
+        return cb(null, true);
+      }
+      return cb(null, false);
+    },
     credentials: false,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [

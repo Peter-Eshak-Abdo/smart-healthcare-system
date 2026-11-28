@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
 import {
   ConsentRequestSchema,
@@ -35,6 +35,7 @@ import { isMinorPatient } from '../../shared/egyptian-id.js';
 import { AppError } from '../../shared/errors.js';
 import { issuePickupToken, type CanonicalRxItem } from '../prescriptions/signing.js';
 import { loadPrescriptionDetail } from '../prescriptions/detail.js';
+import { generateMrn } from '../auth/register.js';
 import { loadCriticalInfo } from './shared.js';
 
 export function patientRoutes(deps: AppDeps): Router {
@@ -61,7 +62,7 @@ export function patientRoutes(deps: AppDeps): Router {
           throw new AppError('CONFLICT_VERSION', { statusOverride: 409, detail: 'already_onboarded' });
         }
 
-        const mrn = `SH-EG-${String(randomInt(100_000, 999_999))}`;
+        const mrn = generateMrn();
         const nowIso = new Date().toISOString();
         const bidx = deps.fieldCipher
           .blindIndex(`${body.id_document_type}:${body.id_document_number}`, 'id_document')

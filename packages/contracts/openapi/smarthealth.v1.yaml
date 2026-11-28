@@ -605,6 +605,428 @@ paths:
                   - emergency_phone
                   - feature_flags
                 additionalProperties: false
+  /v1/auth/register:
+    post:
+      summary: >-
+        Self-service account registration (patient active immediately; clinical
+        staff pending licence review)
+      tags:
+        - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum:
+                    - patient
+                    - doctor
+                    - pharmacist
+                    - paramedic
+                email:
+                  type: string
+                  maxLength: 254
+                  format: email
+                phone:
+                  type: string
+                  minLength: 8
+                  maxLength: 20
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                confirm_password:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                full_name:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                national_id:
+                  type: string
+                  pattern: ^\d{14}$
+                date_of_birth:
+                  type: string
+                  pattern: ^\d{4}-\d{2}-\d{2}$
+                sex:
+                  type: string
+                  enum:
+                    - male
+                    - female
+                preferred_locale:
+                  type: string
+                  enum:
+                    - ar
+                    - en
+                  default: ar
+                blood_type:
+                  type: string
+                  enum:
+                    - A+
+                    - A-
+                    - B+
+                    - B-
+                    - AB+
+                    - AB-
+                    - O+
+                    - O-
+                    - unknown
+                license_number:
+                  type: string
+                  minLength: 3
+                  maxLength: 64
+                specialty_code:
+                  type: string
+                  minLength: 2
+                  maxLength: 32
+                facility_id:
+                  type: string
+                  minLength: 2
+                  maxLength: 64
+                accept_terms:
+                  type: boolean
+                  enum:
+                    - true
+              required:
+                - role
+                - email
+                - phone
+                - password
+                - confirm_password
+                - full_name
+                - date_of_birth
+                - sex
+                - accept_terms
+              additionalProperties: false
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    minLength: 1
+                  role:
+                    type: string
+                    enum:
+                      - patient
+                      - doctor
+                      - pharmacist
+                      - paramedic
+                  status:
+                    type: string
+                    enum:
+                      - pending_verification
+                      - active
+                      - suspended
+                      - deactivated
+                  license_status:
+                    type:
+                      - string
+                      - 'null'
+                    enum:
+                      - pending
+                      - verified
+                      - suspended
+                      - revoked
+                      - expired
+                  mrn:
+                    type:
+                      - string
+                      - 'null'
+                  created_at:
+                    type: string
+                    format: date-time
+                required:
+                  - user_id
+                  - role
+                  - status
+                  - license_status
+                  - mrn
+                  - created_at
+                additionalProperties: false
+        '409':
+          description: RFC 9457 Problem Details error
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    format: uri
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                    minimum: 100
+                    maximum: 599
+                  code:
+                    type: string
+                    enum:
+                      - AUTH_TOKEN_MISSING
+                      - AUTH_TOKEN_INVALID
+                      - AUTH_TOKEN_EXPIRED
+                      - AUTH_SESSION_REVOKED
+                      - AUTH_MFA_REQUIRED
+                      - AUTH_STEP_UP_REQUIRED
+                      - AUTH_STEP_UP_INVALID
+                      - ACCOUNT_SUSPENDED
+                      - LICENSE_NOT_VALID
+                      - RBAC_FORBIDDEN
+                      - ACCESS_GRANT_REQUIRED
+                      - RESOURCE_NOT_FOUND
+                      - VALIDATION_FAILED
+                      - IDEMPOTENCY_KEY_REQUIRED
+                      - IDEMPOTENCY_KEY_CONFLICT
+                      - CONFLICT_VERSION
+                      - RATE_LIMITED
+                      - RX_NOT_FOUND
+                      - RX_SIGNATURE_INVALID
+                      - RX_EXPIRED
+                      - RX_CANCELLED
+                      - RX_ALREADY_DISPENSED
+                      - RX_QUANTITY_EXCEEDED
+                      - RX_LEASE_HELD
+                      - RX_ALERT_OVERRIDE_REQUIRED
+                      - RX_PRESCRIBER_INVALID
+                      - PICKUP_TOKEN_INVALID
+                      - EMERG_NO_MATCH
+                      - EMERG_SESSION_EXPIRED
+                      - EMERG_CONTACTS_NOT_SHARED
+                      - BIO_NO_FACE
+                      - BIO_MULTIPLE_FACES
+                      - BIO_LOW_QUALITY
+                      - BIO_LIVENESS_FAILED
+                      - BIO_CONSENT_REQUIRED
+                      - BIO_ALREADY_ENROLLED
+                      - AI_SERVICE_UNAVAILABLE
+                      - AI_TIMEOUT
+                      - FEATURE_NOT_IMPLEMENTED
+                      - INTERNAL_ERROR
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  request_id:
+                    type: string
+                    format: uuid
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        code:
+                          type: string
+                        message:
+                          type: string
+                        alert_key:
+                          type: string
+                      required:
+                        - path
+                        - code
+                        - message
+                      additionalProperties: false
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - instance
+                  - request_id
+                additionalProperties: false
+        '422':
+          description: RFC 9457 Problem Details error
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    format: uri
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                    minimum: 100
+                    maximum: 599
+                  code:
+                    type: string
+                    enum:
+                      - AUTH_TOKEN_MISSING
+                      - AUTH_TOKEN_INVALID
+                      - AUTH_TOKEN_EXPIRED
+                      - AUTH_SESSION_REVOKED
+                      - AUTH_MFA_REQUIRED
+                      - AUTH_STEP_UP_REQUIRED
+                      - AUTH_STEP_UP_INVALID
+                      - ACCOUNT_SUSPENDED
+                      - LICENSE_NOT_VALID
+                      - RBAC_FORBIDDEN
+                      - ACCESS_GRANT_REQUIRED
+                      - RESOURCE_NOT_FOUND
+                      - VALIDATION_FAILED
+                      - IDEMPOTENCY_KEY_REQUIRED
+                      - IDEMPOTENCY_KEY_CONFLICT
+                      - CONFLICT_VERSION
+                      - RATE_LIMITED
+                      - RX_NOT_FOUND
+                      - RX_SIGNATURE_INVALID
+                      - RX_EXPIRED
+                      - RX_CANCELLED
+                      - RX_ALREADY_DISPENSED
+                      - RX_QUANTITY_EXCEEDED
+                      - RX_LEASE_HELD
+                      - RX_ALERT_OVERRIDE_REQUIRED
+                      - RX_PRESCRIBER_INVALID
+                      - PICKUP_TOKEN_INVALID
+                      - EMERG_NO_MATCH
+                      - EMERG_SESSION_EXPIRED
+                      - EMERG_CONTACTS_NOT_SHARED
+                      - BIO_NO_FACE
+                      - BIO_MULTIPLE_FACES
+                      - BIO_LOW_QUALITY
+                      - BIO_LIVENESS_FAILED
+                      - BIO_CONSENT_REQUIRED
+                      - BIO_ALREADY_ENROLLED
+                      - AI_SERVICE_UNAVAILABLE
+                      - AI_TIMEOUT
+                      - FEATURE_NOT_IMPLEMENTED
+                      - INTERNAL_ERROR
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  request_id:
+                    type: string
+                    format: uuid
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        code:
+                          type: string
+                        message:
+                          type: string
+                        alert_key:
+                          type: string
+                      required:
+                        - path
+                        - code
+                        - message
+                      additionalProperties: false
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - instance
+                  - request_id
+                additionalProperties: false
+        '429':
+          description: RFC 9457 Problem Details error
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    format: uri
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                    minimum: 100
+                    maximum: 599
+                  code:
+                    type: string
+                    enum:
+                      - AUTH_TOKEN_MISSING
+                      - AUTH_TOKEN_INVALID
+                      - AUTH_TOKEN_EXPIRED
+                      - AUTH_SESSION_REVOKED
+                      - AUTH_MFA_REQUIRED
+                      - AUTH_STEP_UP_REQUIRED
+                      - AUTH_STEP_UP_INVALID
+                      - ACCOUNT_SUSPENDED
+                      - LICENSE_NOT_VALID
+                      - RBAC_FORBIDDEN
+                      - ACCESS_GRANT_REQUIRED
+                      - RESOURCE_NOT_FOUND
+                      - VALIDATION_FAILED
+                      - IDEMPOTENCY_KEY_REQUIRED
+                      - IDEMPOTENCY_KEY_CONFLICT
+                      - CONFLICT_VERSION
+                      - RATE_LIMITED
+                      - RX_NOT_FOUND
+                      - RX_SIGNATURE_INVALID
+                      - RX_EXPIRED
+                      - RX_CANCELLED
+                      - RX_ALREADY_DISPENSED
+                      - RX_QUANTITY_EXCEEDED
+                      - RX_LEASE_HELD
+                      - RX_ALERT_OVERRIDE_REQUIRED
+                      - RX_PRESCRIBER_INVALID
+                      - PICKUP_TOKEN_INVALID
+                      - EMERG_NO_MATCH
+                      - EMERG_SESSION_EXPIRED
+                      - EMERG_CONTACTS_NOT_SHARED
+                      - BIO_NO_FACE
+                      - BIO_MULTIPLE_FACES
+                      - BIO_LOW_QUALITY
+                      - BIO_LIVENESS_FAILED
+                      - BIO_CONSENT_REQUIRED
+                      - BIO_ALREADY_ENROLLED
+                      - AI_SERVICE_UNAVAILABLE
+                      - AI_TIMEOUT
+                      - FEATURE_NOT_IMPLEMENTED
+                      - INTERNAL_ERROR
+                  detail:
+                    type: string
+                  instance:
+                    type: string
+                  request_id:
+                    type: string
+                    format: uuid
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        code:
+                          type: string
+                        message:
+                          type: string
+                        alert_key:
+                          type: string
+                      required:
+                        - path
+                        - code
+                        - message
+                      additionalProperties: false
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - instance
+                  - request_id
+                additionalProperties: false
   /v1/auth/devices:
     post:
       summary: Register device P-256 public key for biometric step-up
@@ -1210,12 +1632,16 @@ paths:
                 challenge_id:
                   type: string
                   format: uuid
+                device_id:
+                  type: string
+                  format: uuid
                 signature_b64:
                   type: string
                   minLength: 16
                   maxLength: 2048
               required:
                 - challenge_id
+                - device_id
                 - signature_b64
               additionalProperties: false
       responses:
