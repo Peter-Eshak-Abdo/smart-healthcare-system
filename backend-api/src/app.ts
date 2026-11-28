@@ -14,7 +14,7 @@ import { accessRoutes } from './modules/access/routes.js';
 import { adminRoutes } from './modules/admin/routes.js';
 import { aiRoutes } from './modules/ai/routes.js';
 import { assistantRoutes } from './modules/assistant/routes.js';
-import { authRoutes } from './modules/auth/routes.js';
+import { authRoutes, publicAuthRoutes } from './modules/auth/routes.js';
 import { biometricRoutes, type BiometricAnalyzerPort } from './modules/biometrics/routes.js';
 import { doctorRoutes } from './modules/doctor/routes.js';
 import { emergencyRoutes } from './modules/emergency/routes.js';
@@ -62,8 +62,9 @@ export function buildApp(env: AppEnv, opts: BuildAppOptions = {}): Express {
   // 5. Client minimum version enforcement (426 Upgrade Required)
   app.use(clientVersionMiddleware(deps.env));
 
-  // 6. Auth IP rate limit bucket
+  // 6. Auth IP rate limit bucket & public registration
   app.use('/v1/auth', deps.rateLimit.middleware('auth_ip', (req) => req.ip ?? 'unknown'));
+  app.use('/v1', publicAuthRoutes(deps));
 
   // 7. Authentication -> AuthContext validation
   app.use('/v1', authenticateMiddleware(deps.verifyJwt, deps.authContext));

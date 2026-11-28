@@ -1,8 +1,10 @@
 import {
   DeviceIdParamSchema,
+  RegisterAccountRequestSchema,
   RegisterDeviceRequestSchema,
   StepUpChallengeRequestSchema,
   StepUpVerifyRequestSchema,
+  type RegisterAccountRequest,
 } from '@smarthealth/contracts';
 import { Router } from 'express';
 import type { AppDeps } from '../../app-deps.js';
@@ -11,8 +13,106 @@ import { COLLECTIONS } from '../../firebase/firestore-types.js';
 import { requireRecentAuth, requireStepUp } from '../../middleware/authorize.js';
 import { validate } from '../../middleware/validate.js';
 import { writeAuditLog } from '../../security/audit.js';
+import { encryptField } from '../../security/crypto.js';
 import { validateP256Spki } from '../../security/step-up.js';
 import { AppError } from '../../shared/errors.js';
+
+export function publicAuthRoutes(deps: AppDeps): Router {
+  const router = Router();
+
+  router.post(
+    '/auth/register',
+    validate({ body: RegisterAccountRequestSchema }),
+    async (req, res, next) => {
+      try {
+        const body = res.locals.validated!.body as RegisterAccountRequest;
+        const db = requireDb(deps);
+        const firebaseAuth = deps.firebaseAuth;
+        if (!firebaseAuth) {
+          throw new AppError('INTERNAL_ERROR', { detail: 'firebase_auth_not_configured' });
+        }
+
+        const status: 'active' | 'pending' = body.role === 'patient' ? 'active' : 'pending';
+        const nowIso = new Date().toISOString();
+
+        const userRecord = await firebaseAuth.createUser({
+          email: body.email,
+          phoneNumber: body.phone,
+          password: body.password,
+          displayName: body.full_name,
+        });
+
+        await firebaseAuth.setCustomUserClaims(userRecord.uid, {
+          role: body.role,
+          status,
+        });
+
+        await db.runTransaction(async (tx) => {
+          tx.set(db.collection(COLLECTIONS.users).doc(userRecord.uid), {
+            id: userRecord.uid,
+            role: body.role,
+            status,
+            session_epoch: 1,
+            full_name: body.full_name,
+            email: body.email,
+            phone: body.phone,
+            preferred_locale: body.preferred_locale,
+            created_at: nowIso,
+            updated_at: nowIso,
+          });
+
+          const nationalIdEnc = encryptField(
+            deps.env.FIELD_ENCRYPTION_KEY,
+            body.national_id,
+            `${COLLECTIONS.patients}|national_id_enc|${userRecord.uid}`,
+          );
+
+          if (body.role === 'patient') {
+            tx.set(db.collection(COLLECTIONS.patients).doc(userRecord.uid), {
+              id: userRecord.uid,
+              full_name: body.full_name,
+              national_id_enc: nationalIdEnc,
+              date_of_birth: body.date_of_birth,
+              sex: body.sex,
+              blood_type: body.blood_type ?? null,
+              created_at: nowIso,
+              updated_at: nowIso,
+            });
+          } else if (
+            body.role === 'doctor' ||
+            body.role === 'pharmacist' ||
+            body.role === 'paramedic'
+          ) {
+            tx.set(db.collection(COLLECTIONS.practitioners).doc(userRecord.uid), {
+              id: userRecord.uid,
+              practitioner_type: body.role,
+              license_number: body.license_number ?? '',
+              license_authority: null,
+              license_status: 'pending',
+              license_expires_at: nowIso,
+              license_status_changed_at: nowIso,
+              specialty_code: body.specialty_code ?? null,
+              national_id_enc: nationalIdEnc,
+              created_at: nowIso,
+              updated_at: nowIso,
+            });
+          }
+        });
+
+        res.status(201).json({
+          user_id: userRecord.uid,
+          role: body.role,
+          status,
+          created_at: nowIso,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  return router;
+}
 
 export function authRoutes(deps: AppDeps): Router {
   const router = Router();
