@@ -2,10 +2,9 @@
 
 import type { MeResponse } from '@smarthealth/contracts';
 import {
-  getMultiFactorResolver,
-  multiFactor,
+  GoogleAuthProvider,
   signInWithEmailAndPassword,
-  type MultiFactorError,
+  signInWithPopup,
 } from 'firebase/auth';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -15,7 +14,6 @@ import { ProblemAlert } from '@/components/common/ProblemAlert';
 import { apiFetch } from '@/lib/api/client';
 import {
   getFirebaseBrowserAuth,
-  setPendingMfaResolver,
   syncFirebaseSessionCookie,
 } from '@/lib/firebase/client';
 
@@ -59,29 +57,34 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      const factors = multiFactor(cred.user).enrolledFactors;
-      if (factors.length === 0) {
-        const token = await cred.user.getIdToken();
-        await syncFirebaseSessionCookie(token);
-        router.push(`${prefix}/mfa/enroll` as never);
-        return;
-      }
-
       const token = await cred.user.getIdToken();
       await syncFirebaseSessionCookie(token);
       const me = await apiFetch<MeResponse>('/v1/me', { locale });
       router.push(resolvePortalHome(me.role, prefix) as never);
     } catch (err) {
-      const code =
-        typeof err === 'object' && err !== null && 'code' in err
-          ? String((err as { code: unknown }).code)
-          : '';
-      if (code === 'auth/multi-factor-auth-required') {
-        const resolver = getMultiFactorResolver(auth, err as MultiFactorError);
-        setPendingMfaResolver(resolver);
-        router.push(`${prefix}/mfa/verify` as never);
-        return;
-      }
+      setError(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    const auth = getFirebaseBrowserAuth();
+    if (!auth) {
+      setError(new Error(tErr('GENERIC')));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const cred = await signInWithPopup(auth, provider);
+      const token = await cred.user.getIdToken();
+      await syncFirebaseSessionCookie(token);
+      const me = await apiFetch<MeResponse>('/v1/me', { locale });
+      router.push(resolvePortalHome(me.role, prefix) as never);
+    } catch (err) {
       setError(err);
     } finally {
       setSubmitting(false);
@@ -150,6 +153,17 @@ export default function LoginPage() {
             <span>{submitting ? '…' : tAuth('signIn')}</span>
           </button>
         </form>
+
+        <div className="mt-4">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => void handleGoogleSignIn()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            <span>{tAuth('signInWithGoogle')}</span>
+          </button>
+        </div>
       </div>
     </main>
   );

@@ -44,6 +44,7 @@
     "email": "Email",
     "password": "Password",
     "signIn": "Sign in",
+    "signInWithGoogle": "Sign in with Google",
     "mfaTitle": "Two-Factor Verification (TOTP)",
     "mfaHint": "Enter the 6-digit code from your authenticator app.",
     "mfaEnrollTitle": "Enroll Two-Factor Authentication",

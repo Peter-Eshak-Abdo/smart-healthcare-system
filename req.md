@@ -46,6 +46,7 @@ npx --yes firebase-tools deploy --only hosting
 بعدها ارفع `smarthealth.apk` (من جذر المشروع) في **GitHub → Releases → Draft a new release** (باسم `v1.0.0`).
 
 ### الروابط النهائية
+
 - **Backend API:** `https://smart-healthcare-system-huyh.onrender.com/health`
 - **Web Admin (Doctor / Pharmacist / ER / Admin):** `https://smart-healthcare-system-web-admin.vercel.app`
 - **Flutter Web (PWA):** `https://smart-healthcare-system-cce19.web.app`

@@ -1,6 +1,16 @@
 import { cert, getApps, initializeApp, type App, type ServiceAccount } from 'firebase-admin/app';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 
+function normalizePrivateKey(raw: string): string {
+  const trimmed = raw.trim();
+  const unquoted =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+  return unquoted.replace(/\\n/g, '\n');
+}
+
 function getServiceAccount(): ServiceAccount | null {
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (json) {
@@ -13,7 +23,7 @@ function getServiceAccount(): ServiceAccount | null {
       return {
         projectId: parsed.project_id,
         clientEmail: parsed.client_email,
-        privateKey: parsed.private_key.replace(/\\n/g, '\n'),
+        privateKey: normalizePrivateKey(parsed.private_key),
       };
     }
   }
@@ -25,7 +35,7 @@ function getServiceAccount(): ServiceAccount | null {
     return {
       projectId,
       clientEmail,
-      privateKey: privateKey.replace(/\\n/g, '\n'),
+      privateKey: normalizePrivateKey(privateKey),
     };
   }
   return null;
