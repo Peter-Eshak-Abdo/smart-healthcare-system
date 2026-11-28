@@ -2,7 +2,6 @@ import type { AppRole, MeResponse } from '@smarthealth/contracts';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { serverApiFetch } from '@/lib/api/server';
-import { isApiErrorCode } from '@/lib/api/errors';
 import { getFirebaseServerAuth } from '@/lib/firebase/admin';
 
 export async function requireRole(
@@ -30,16 +29,10 @@ export async function requireRole(
   let me: MeResponse;
   try {
     me = await serverApiFetch<MeResponse>('/v1/me', idToken, locale);
-  } catch (err) {
-    if (isApiErrorCode(err, 'AUTH_MFA_REQUIRED')) {
-      redirect(`${prefix}/mfa/verify` as never);
-    }
+  } catch {
     redirect(`${prefix}/not-authorized` as never);
   }
 
-  if (me.mfa.aal !== 'aal2') {
-    redirect(`${prefix}/mfa/verify` as never);
-  }
   if (!allowed.includes(me.role) || me.status !== 'active') {
     redirect(`${prefix}/not-authorized` as never);
   }
