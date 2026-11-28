@@ -12,6 +12,7 @@ const cspDirectives = [
   "img-src 'self' data: blob:",
   "font-src 'self' https: data:",
   `connect-src 'self' ${apiOrigin} https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com`,
+  "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -37,6 +38,10 @@ const nextConfig: NextConfig = {
             value: 'camera=(self), microphone=(), geolocation=()',
           },
           { key: 'X-Frame-Options', value: 'DENY' },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
         ],
       },
       {
